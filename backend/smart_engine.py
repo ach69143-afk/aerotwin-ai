@@ -14,9 +14,29 @@ class EngineHealthMonitor:
         self.ai_model.fit(features)
         self.is_trained = True
 
+    def diagnose(self, data):
+        # Very simple heuristic rules for diagnostic layer
+        rpm, cht, oil, vib = data['rpm'], data['cht'], data['oil_pressure'], data['vibration']
+        
+        if oil < 2.0:
+            return "LUBRICATION_ISSUE"
+        elif cht > 165 and vib < 0.8:
+            if oil < 3.8:
+                return "OVERHEATING"
+            else:
+                return "SENSOR_DRIFT"
+        elif vib > 1.2 and rpm > 4500:
+            return "ABNORMAL_VIBRATION"
+        elif vib > 0.5 and cht > 155:
+            return "MISFIRE"
+        elif rpm < 4600 and vib > 0.3:
+            return "INJECTOR_ABNORMALITY"
+            
+        return "GENERIC_FAULT"
+
     def predict_health(self, current_data):
         if not self.is_trained:
-            return "HEALTHY", "N/A", 0.0, "NORMAL"
+            return "HEALTHY", "N/A", 0.0, "NORMAL", 100.0, "NONE"
             
         df_current = pd.DataFrame([current_data])
         features = df_current[['rpm', 'cht', 'oil_pressure', 'vibration']]
@@ -50,4 +70,8 @@ class EngineHealthMonitor:
             penalty = max(0, (current_cht - 150) / 30 * 98)
             health_pct = max(0.0, 98.0 - penalty)
 
-        return health_status, rul, anomaly_score, risk_level, round(health_pct, 1)
+        likely_fault = "NONE"
+        if prediction == -1:
+            likely_fault = self.diagnose(current_data)
+
+        return health_status, rul, anomaly_score, risk_level, round(health_pct, 1), likely_fault

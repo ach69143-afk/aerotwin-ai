@@ -11,6 +11,7 @@ export interface Telemetry {
   rul: string;
   anomalyScore: number;
   status: string;
+  likelyFault?: string;
 }
 
 export interface FaultEvent {

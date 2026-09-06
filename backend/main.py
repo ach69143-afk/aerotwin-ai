@@ -2,8 +2,12 @@ import asyncio
 import json
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from engine_sim import AeroEngineSimulator
 from smart_engine import EngineHealthMonitor
+
+class FaultRequest(BaseModel):
+    fault_type: str = "GENERIC"
 
 app = FastAPI(title="Aerotwin AI Backend")
 
@@ -31,9 +35,10 @@ async def startup_event():
     print("AI Model trained successfully.")
 
 @app.post("/api/simulate-fault")
-async def simulate_fault():
-    engine.trigger_fault()
-    return {"status": "Fault injected successfully"}
+async def simulate_fault(request: FaultRequest = None):
+    fault_type = request.fault_type if request else "GENERIC"
+    engine.trigger_fault(fault_type)
+    return {"status": f"Fault '{fault_type}' injected successfully"}
 
 @app.post("/api/reset")
 async def reset_simulation():
@@ -49,7 +54,7 @@ async def websocket_endpoint(websocket: WebSocket):
             sensor_data = engine.get_sensor_data()
             
             # Predict health
-            health_status, rul, anomaly_score, risk_level, health_pct = monitor.predict_health(sensor_data)
+            health_status, rul, anomaly_score, risk_level, health_pct, likely_fault = monitor.predict_health(sensor_data)
             
             # Build payload
             payload = {
@@ -62,7 +67,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 "risk": risk_level,
                 "rul": rul,
                 "anomalyScore": round(anomaly_score, 4),
-                "status": health_status
+                "status": health_status,
+                "likelyFault": likely_fault
             }
             
             await websocket.send_text(json.dumps(payload))
