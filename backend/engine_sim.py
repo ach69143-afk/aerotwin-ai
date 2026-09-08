@@ -1,8 +1,10 @@
 import random
+import time
 from datetime import datetime
 
 class AeroEngineSimulator:
     def __init__(self):
+        self.last_tick_time = time.time()
         self.reset()
 
     def reset(self):
@@ -47,6 +49,12 @@ class AeroEngineSimulator:
             self.fault_severity = 0.0
 
     def get_sensor_data(self):
+        current_time = time.time()
+        elapsed = current_time - self.last_tick_time
+        if elapsed > 1.0:
+            elapsed = 0.1
+        self.last_tick_time = current_time
+
         # Update internal state based on engine_state
         if self.engine_state == "OFF":
             self.rpm = 0.0
@@ -54,12 +62,8 @@ class AeroEngineSimulator:
             self.oil_pressure = 4.0
             self.vibration = 0.2
         elif self.engine_state == "STARTING":
-            if self.rpm < 800:
-                self.rpm += 150
-            elif self.rpm < 1500:
-                self.rpm += 200
-            elif self.rpm < 5000:
-                self.rpm += 250
+            acceleration_rate = 75.0
+            self.rpm += acceleration_rate * elapsed
             
             if self.rpm >= 4950:
                 self.rpm = 5000.0
@@ -69,7 +73,8 @@ class AeroEngineSimulator:
         elif self.engine_state == "HOLD":
             pass # Keep current RPM
         elif self.engine_state == "STOPPING":
-            self.rpm -= 300
+            deceleration_rate = 150.0
+            self.rpm -= deceleration_rate * elapsed
             if self.rpm <= 0:
                 self.rpm = 0.0
                 self.engine_state = "OFF"

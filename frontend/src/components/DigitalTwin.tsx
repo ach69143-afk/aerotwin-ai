@@ -86,7 +86,7 @@ function EngineModel() {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
         const mat = new THREE.MeshStandardMaterial({
-          color: new THREE.Color(0.22, 0.25, 0.28), // dark gunmetal/steel
+          color: new THREE.Color(0.8, 0.85, 0.9), // light metallic white for OFF state
           roughness: 0.38,
           metalness: 0.75,
           envMapIntensity: 1.0,
@@ -153,19 +153,57 @@ function EngineModel() {
 
     const t = sm.thermalT;
     const f = sm.faultIntensity;
+    const rpmRatio = Math.max(0, Math.min(1, telemetry.rpm / 5000));
 
-    // Emissive: amber in normal thermal, shifts to red during faults
-    const emR = t * (1.0 - f * 0.2) + f * 0.8;
-    const emG = t * (0.3 - f * 0.2);
-    const emB = 0;
-    const emIntensity = Math.max(t * 1.5, f * 2.0);
+    // Base color transitions
+    const c0 = { r: 0.8, g: 0.85, b: 0.9 }; // WHITE / light metallic
+    const c1 = { r: 0.1, g: 0.3, b: 0.15 }; // GREEN base
+    const c2 = { r: 0.4, g: 0.1, b: 0.1 };  // RED base
+
+    // Emissive transitions
+    const e0 = { r: 0, g: 0, b: 0, int: 0 }; // No glow
+    const e1 = { r: 0.1, g: 0.8, b: 0.3, int: 1.0 }; // GREEN glow
+    const e2 = { r: 0.9, g: 0.1, b: 0.1, int: 1.5 }; // RED glow
+
+    // Interpolate based on RPM
+    const cMix1 = {
+      r: c0.r + (c1.r - c0.r) * rpmRatio,
+      g: c0.g + (c1.g - c0.g) * rpmRatio,
+      b: c0.b + (c1.b - c0.b) * rpmRatio
+    };
+    const eMix1 = {
+      r: e0.r + (e1.r - e0.r) * rpmRatio,
+      g: e0.g + (e1.g - e0.g) * rpmRatio,
+      b: e0.b + (e1.b - e0.b) * rpmRatio,
+      int: e0.int + (e1.int - e0.int) * rpmRatio
+    };
+
+    // Interpolate based on Fault
+    const finalC = {
+      r: cMix1.r + (c2.r - cMix1.r) * f,
+      g: cMix1.g + (c2.g - cMix1.g) * f,
+      b: cMix1.b + (c2.b - cMix1.b) * f
+    };
+    
+    // Preserve thermal effect by adding it to the red/amber glow
+    const thermalR = t * 1.0;
+    const thermalG = t * 0.3;
+    const thermalInt = t * 1.5;
+
+    const finalE = {
+      r: Math.min(1, eMix1.r + (e2.r - eMix1.r) * f + thermalR),
+      g: Math.min(1, eMix1.g + (e2.g - eMix1.g) * f + thermalG),
+      b: eMix1.b + (e2.b - eMix1.b) * f,
+      int: Math.max(eMix1.int + (e2.int - eMix1.int) * f, thermalInt)
+    };
 
     for (const mat of materials) {
-      mat.emissive.setRGB(emR, emG, emB);
-      mat.emissiveIntensity = emIntensity;
+      mat.color.setRGB(finalC.r, finalC.g, finalC.b);
+      mat.emissive.setRGB(finalE.r, finalE.g, finalE.b);
+      mat.emissiveIntensity = finalE.int;
 
-      // Subtle roughness shift during faults (makes surface look hotter)
-      mat.roughness = 0.35 + f * 0.15;
+      // Subtle roughness shift during faults/thermal (makes surface look hotter)
+      mat.roughness = 0.35 + f * 0.15 + t * 0.1;
     }
   });
 

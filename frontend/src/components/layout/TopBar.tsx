@@ -35,11 +35,11 @@ export function TopBar({ onMenuClick }: TopBarProps) {
   ];
 
   return (
-    <div className="h-12 md:h-10 border-b border-border/30 bg-[#0c0c0e]/80 flex items-center px-3 md:px-5 gap-2 md:gap-6 shrink-0 select-none overflow-hidden">
+    <div className="relative h-12 md:h-10 border-b border-border/30 bg-[#0c0c0e]/80 flex items-center pl-[64px] pr-3 md:px-5 gap-2 md:gap-6 shrink-0 select-none overflow-hidden z-50 pointer-events-auto">
       {/* Mobile Menu Button */}
       <button 
         onClick={onMenuClick}
-        className="md:hidden w-11 h-11 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 rounded-sm shrink-0"
+        className="md:hidden absolute left-[16px] top-1/2 -translate-y-1/2 w-[48px] h-[48px] flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 rounded-sm shrink-0 z-50 pointer-events-auto"
       >
         <Menu size={18} />
       </button>
