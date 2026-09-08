@@ -37,7 +37,7 @@ export function DigitalTwinPage() {
         {/* ── 3D Viewport with overlays ────────────────────────── */}
         <div className="flex-1 min-h-0 relative bg-[#09090b]">
           {/* Left telemetry overlay — positioned inside the viewport only */}
-          <div className="absolute left-4 top-1/2 -translate-y-1/2 z-10 w-44 flex flex-col gap-3 pointer-events-none">
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 z-10 w-44 hidden md:flex flex-col gap-3 pointer-events-none">
             {telemetry && (
               <>
                 <div className="bg-[#05080D]/70 backdrop-blur-md border border-cyan-500/20 p-3 rounded-sm">

@@ -185,28 +185,28 @@ function TelemetryOverlay({ hideTitle }: { hideTitle?: boolean }) {
   return (
     <>
       {!hideTitle && (
-        <div className="absolute top-5 left-5 pointer-events-none flex flex-col gap-1">
-          <h3 className="text-cyan-500 font-mono text-sm tracking-widest font-bold">3D DIGITAL TWIN</h3>
-          <p className="text-muted-foreground text-[10px] font-mono tracking-widest uppercase">Live Engine Telemetry Mapping</p>
-          <div className="flex items-center gap-2 mt-2">
+        <div className="absolute top-3 left-3 md:top-5 md:left-5 pointer-events-none flex flex-col gap-1 z-10">
+          <h3 className="text-cyan-500 font-mono text-xs md:text-sm tracking-widest font-bold">3D DIGITAL TWIN</h3>
+          <p className="text-muted-foreground text-[8px] md:text-[10px] font-mono tracking-widest uppercase hidden sm:block">Live Engine Telemetry Mapping</p>
+          <div className="flex items-center gap-2 mt-1 md:mt-2">
             <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-            <span className="text-emerald-400 text-[10px] font-mono tracking-widest">MODEL ONLINE</span>
+            <span className="text-emerald-400 text-[8px] md:text-[10px] font-mono tracking-widest">MODEL ONLINE</span>
           </div>
         </div>
       )}
 
-      <div className="absolute right-5 bottom-5 md:top-5 md:bottom-auto pointer-events-none flex flex-col gap-3 items-end">
+      <div className="absolute right-2 top-2 md:right-5 md:top-5 pointer-events-none flex flex-row md:flex-col gap-2 md:gap-3 items-end z-10 flex-wrap justify-end max-w-[60%] md:max-w-none">
         {[
           { label: 'RPM', value: telemetry.rpm.toFixed(0), unit: 'REV/MIN', color: 'text-emerald-400' },
           { label: 'CHT', value: telemetry.cht.toFixed(1), unit: '°C', color: telemetry.cht > 165 ? 'text-amber-400' : 'text-emerald-400' },
           { label: 'VIBRATION', value: telemetry.vibration.toFixed(2), unit: 'MM/S', color: telemetry.vibration > 0.4 ? 'text-amber-400' : 'text-emerald-400' },
           { label: 'AI STATE', value: telemetry.status, unit: '', color: telemetry.status === 'HEALTHY' ? 'text-emerald-400' : 'text-red-500' }
         ].map((stat, i) => (
-          <div key={i} className="text-right bg-[#05080D]/70 backdrop-blur-md px-3 py-1.5 rounded-sm border border-cyan-500/30 min-w-[130px] shadow-[0_0_10px_rgba(6,182,212,0.1)]">
-            <p className="text-cyan-400/80 text-[9px] font-mono tracking-widest">{stat.label}</p>
-            <div className="flex items-baseline justify-end gap-1 mt-0.5">
-              <span className={`text-lg font-mono font-medium tracking-tight ${stat.color}`}>{stat.value}</span>
-              {stat.unit && <span className="text-cyan-500/50 text-[9px] font-mono">{stat.unit}</span>}
+          <div key={i} className="text-right bg-[#05080D]/70 backdrop-blur-md px-2 py-1 md:px-3 md:py-1.5 rounded-sm border border-cyan-500/30 min-w-[70px] md:min-w-[130px] shadow-[0_0_10px_rgba(6,182,212,0.1)]">
+            <p className="text-cyan-400/80 text-[7px] md:text-[9px] font-mono tracking-widest">{stat.label}</p>
+            <div className="flex items-baseline justify-end gap-1 mt-0 md:mt-0.5">
+              <span className={`text-xs md:text-lg font-mono font-medium tracking-tight ${stat.color}`}>{stat.value}</span>
+              {stat.unit && <span className="text-cyan-500/50 text-[7px] md:text-[9px] font-mono hidden sm:inline">{stat.unit}</span>}
             </div>
           </div>
         ))}
@@ -225,12 +225,12 @@ function TelemetryOverlay({ hideTitle }: { hideTitle?: boolean }) {
 
 export function DigitalTwin({ hideTitle }: { hideTitle?: boolean }) {
   return (
-    <div className="w-full h-full min-h-[400px] rounded-sm relative bg-[#05080D] overflow-hidden border border-[#06b6d4]/20 shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]">
+    <div className="w-full h-full min-h-[320px] md:min-h-[400px] rounded-sm relative bg-[#05080D] overflow-hidden border border-[#06b6d4]/20 shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]">
       <ModelErrorBoundary>
         <Canvas
           camera={{ position: [5, 3.5, 5], fov: 45 }}
           shadows
-          dpr={[1, 1.5]}
+          dpr={[1, 1.2]}
           gl={{
             antialias: true,
             toneMapping: THREE.ACESFilmicToneMapping,

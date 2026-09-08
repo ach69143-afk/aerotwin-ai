@@ -1,9 +1,12 @@
-
 import { useStore } from '../../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plane, Radio, Cpu, Shield } from 'lucide-react';
+import { Plane, Radio, Cpu, Shield, Menu } from 'lucide-react';
 
-export function TopBar() {
+interface TopBarProps {
+  onMenuClick?: () => void;
+}
+
+export function TopBar({ onMenuClick }: TopBarProps) {
   const telemetry = useStore((s) => s.throttledTelemetry);
   const isConnected = useStore((s) => s.isConnected);
 
@@ -24,25 +27,32 @@ export function TopBar() {
       ? 'text-red-400'
       : 'text-zinc-500';
 
-
-
   const items = [
-    { label: 'MISSION', value: 'SURVEILLANCE-07', icon: Shield, color: 'text-cyan-400' },
-    { label: 'UAV', value: 'AIRBORNE', icon: Plane, color: 'text-emerald-400' },
-    { label: 'DATALINK', value: isConnected ? 'ACTIVE' : 'OFFLINE', icon: Radio, color: isConnected ? 'text-emerald-400' : 'text-red-400' },
-    { label: 'SYSTEM', value: systemStatus, icon: Cpu, color: statusColor },
+    { label: 'MISSION', shortLabel: 'MSN', value: 'SURVEILLANCE-07', icon: Shield, color: 'text-cyan-400' },
+    { label: 'UAV', shortLabel: 'UAV', value: 'AIRBORNE', icon: Plane, color: 'text-emerald-400' },
+    { label: 'DATALINK', shortLabel: 'LINK', value: isConnected ? 'ACTIVE' : 'OFFLINE', icon: Radio, color: isConnected ? 'text-emerald-400' : 'text-red-400' },
+    { label: 'SYSTEM', shortLabel: 'SYS', value: systemStatus, icon: Cpu, color: statusColor },
   ];
 
   return (
-    <div className="h-10 border-b border-border/30 bg-[#0c0c0e]/80 flex items-center px-5 gap-6 shrink-0 select-none">
-      <div className="flex items-center gap-5 flex-1">
+    <div className="h-10 md:h-10 border-b border-border/30 bg-[#0c0c0e]/80 flex items-center px-3 md:px-5 gap-3 md:gap-6 shrink-0 select-none overflow-x-auto no-scrollbar">
+      {/* Mobile Menu Button */}
+      <button 
+        onClick={onMenuClick}
+        className="md:hidden p-1.5 -ml-1.5 text-zinc-400 hover:text-white hover:bg-white/10 rounded-sm shrink-0"
+      >
+        <Menu size={18} />
+      </button>
+
+      <div className="flex items-center gap-4 md:gap-5 flex-1 min-w-max">
         {items.map((item) => {
           const Icon = item.icon;
           return (
-            <div key={item.label} className="flex items-center gap-2">
-              <Icon size={11} className="text-zinc-600" strokeWidth={1.5} />
+            <div key={item.label} className="flex items-center gap-1.5 md:gap-2 shrink-0">
+              <Icon size={11} className="text-zinc-600 hidden sm:block" strokeWidth={1.5} />
               <span className="text-[9px] text-zinc-600 tracking-[0.15em] font-mono">
-                {item.label}
+                <span className="hidden lg:inline">{item.label}</span>
+                <span className="inline lg:hidden">{item.shortLabel}</span>
               </span>
               <AnimatePresence mode="wait">
                 <motion.span
@@ -62,7 +72,7 @@ export function TopBar() {
       </div>
 
       {/* Right side: time */}
-      <div className="text-[9px] text-zinc-600 font-mono tracking-wider">
+      <div className="text-[9px] text-zinc-600 font-mono tracking-wider shrink-0 ml-auto hidden sm:block">
         {telemetry?.timestamp || '--:--:--'}
       </div>
     </div>

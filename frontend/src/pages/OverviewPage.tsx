@@ -14,7 +14,7 @@ const TelemetryCard = ({ title, value, unit, icon: Icon, status }: { title: stri
 
   return (
     <div 
-      className={`p-4 bg-card/80 backdrop-blur-sm rounded-sm border ${colors[status]} flex items-center justify-between shadow-lg relative overflow-hidden`}
+      className={`p-3 md:p-4 bg-card/80 backdrop-blur-sm rounded-sm border ${colors[status]} flex items-center justify-between shadow-lg relative overflow-hidden`}
     >
       <div className="z-10 relative">
         <p className="text-muted-foreground text-xs font-sans uppercase tracking-widest">{title}</p>
@@ -57,11 +57,11 @@ export function OverviewPage() {
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className="page-container"
+      className="page-container flex flex-col"
     >
       
       {/* Top KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0 order-1">
         {[
           { label: 'ENGINE HEALTH', value: `${telemetry.healthPct.toFixed(1)}%`, color: telemetry.healthPct > 90 ? 'text-emerald-400' : 'text-amber-400' },
           { label: 'RISK LEVEL', value: telemetry.risk, color: riskColor },
@@ -82,15 +82,15 @@ export function OverviewPage() {
       </div>
 
       {/* Control Row — uses shared EngineControlBar */}
-      <div className="bg-card/80 p-3 rounded-sm border border-border/50 shadow-lg mt-2 mb-2 shrink-0">
+      <div className="bg-card/80 p-3 rounded-sm border border-border/50 shadow-lg mt-2 mb-2 shrink-0 order-4 xl:order-2">
         <EngineControlBar compact />
       </div>
 
       {/* Main Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 flex-1 min-h-[500px]">
+      <div className="contents xl:grid xl:grid-cols-12 gap-4 xl:flex-1 xl:min-h-[500px] order-none xl:order-3">
         
         {/* Left Panel - Telemetry Cards */}
-        <div className="flex flex-col gap-2 xl:col-span-3">
+        <div className="flex flex-col gap-2 xl:col-span-3 order-3 xl:order-none">
           <div className="flex justify-between items-center mb-1">
              <h2 className="text-[10px] font-bold tracking-[0.2em] text-cyan-500/70 uppercase flex items-center gap-2">
                <div className="w-1.5 h-1.5 bg-cyan-500 rounded-full animate-pulse" />
@@ -104,17 +104,17 @@ export function OverviewPage() {
         </div>
 
         {/* Center Panel - Digital Twin */}
-        <div className="xl:col-span-6 flex flex-col gap-2 relative">
+        <div className="xl:col-span-6 flex flex-col gap-2 relative order-2 xl:order-none">
            <div className="flex justify-between items-center mb-1">
              <h2 className="text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase">Digital Twin</h2>
            </div>
-           <div className="flex-1 rounded-sm overflow-hidden border border-border/60 shadow-2xl relative bg-[#040508]">
+           <div className="flex-1 rounded-sm overflow-hidden border border-border/60 shadow-2xl relative bg-[#040508] min-h-[320px] xl:min-h-0">
              <DigitalTwin hideTitle />
            </div>
         </div>
 
         {/* Right Panel - AI Diagnostics */}
-        <div className="xl:col-span-3 flex flex-col gap-2">
+        <div className="xl:col-span-3 flex flex-col gap-2 order-6 xl:order-none mt-2 xl:mt-0">
           <div className="flex justify-between items-center mb-1">
              <h2 className="text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase">AI Diagnostics</h2>
           </div>
@@ -181,7 +181,7 @@ export function OverviewPage() {
       </div>
 
       {/* Bottom Panel - Chart */}
-      <div className="w-full h-56 shrink-0 mt-2">
+      <div className="w-full h-[240px] md:h-56 shrink-0 mt-2 order-5 xl:order-4">
         <div className="w-full h-full p-4 bg-gradient-to-t from-card/80 to-card/20 backdrop-blur-md border border-border/50 rounded-sm flex flex-col shadow-lg relative overflow-hidden">
           <h3 className="text-[10px] tracking-[0.2em] text-cyan-500 font-bold mb-4 uppercase z-10">Thermal & Vibration Trend</h3>
           <div className="flex-1 min-h-0 z-10">

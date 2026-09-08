@@ -1,8 +1,10 @@
 import { Outlet, useLocation } from 'react-router-dom';
+import { useState } from 'react';
 import { useStore } from '../../store/useStore';
 import { useTelemetrySocket } from '../../hooks/useTelemetrySocket';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
+import { MobileDrawer } from './MobileDrawer';
 import { Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WS_TELEMETRY_URL } from '../../config/api';
@@ -12,11 +14,12 @@ export function AppLayout() {
   useTelemetrySocket(WS_TELEMETRY_URL);
   const isReady = useStore((s) => s.telemetry !== null);
   const location = useLocation();
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
   // Show loading screen while waiting for first telemetry frame
   if (!isReady) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen w-screen bg-[#09090b] text-cyan-500 font-mono gap-4">
+      <div className="flex flex-col items-center justify-center h-screen w-screen bg-[#09090b] text-cyan-500 font-mono gap-4 overflow-hidden">
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}
@@ -35,9 +38,15 @@ export function AppLayout() {
         <Sidebar />
       </div>
 
+      {/* Mobile Drawer */}
+      <MobileDrawer 
+        isOpen={isMobileDrawerOpen} 
+        onClose={() => setIsMobileDrawerOpen(false)} 
+      />
+
       {/* Main area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <TopBar />
+        <TopBar onMenuClick={() => setIsMobileDrawerOpen(true)} />
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}

@@ -14,7 +14,7 @@ import {
   Settings,
 } from 'lucide-react';
 
-const navItems = [
+export const navItems = [
   { label: 'Overview', path: '/', icon: LayoutDashboard },
   { label: 'Engine Health', path: '/engine-health', icon: HeartPulse },
   { label: 'Digital Twin', path: '/digital-twin', icon: Box },
