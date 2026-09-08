@@ -35,16 +35,26 @@ export function TopBar({ onMenuClick }: TopBarProps) {
   ];
 
   return (
-    <div className="h-10 md:h-10 border-b border-border/30 bg-[#0c0c0e]/80 flex items-center px-3 md:px-5 gap-3 md:gap-6 shrink-0 select-none overflow-x-auto no-scrollbar">
+    <div className="h-12 md:h-10 border-b border-border/30 bg-[#0c0c0e]/80 flex items-center px-3 md:px-5 gap-2 md:gap-6 shrink-0 select-none overflow-hidden">
       {/* Mobile Menu Button */}
       <button 
         onClick={onMenuClick}
-        className="md:hidden p-1.5 -ml-1.5 text-zinc-400 hover:text-white hover:bg-white/10 rounded-sm shrink-0"
+        className="md:hidden w-11 h-11 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 rounded-sm shrink-0"
       >
         <Menu size={18} />
       </button>
 
-      <div className="flex items-center gap-4 md:gap-5 flex-1 min-w-max">
+      {/* Mobile Title (hidden on md and above) */}
+      <div className="flex md:hidden items-center gap-2 text-[10px] tracking-[0.15em] font-mono font-medium text-zinc-300">
+        <span>AEROTWIN AI</span>
+        <span className="text-zinc-600">•</span>
+        <span className={isConnected ? 'text-emerald-400' : 'text-red-400'}>
+          {isConnected ? 'LINK ACTIVE' : 'OFFLINE'}
+        </span>
+      </div>
+
+      {/* Desktop Detailed Status (hidden on mobile) */}
+      <div className="hidden md:flex items-center gap-4 md:gap-5 flex-1 min-w-max">
         {items.map((item) => {
           const Icon = item.icon;
           return (

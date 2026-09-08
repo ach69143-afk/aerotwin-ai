@@ -109,7 +109,10 @@ function EngineModel() {
       const box = new THREE.Box3().setFromObject(groupRef.current);
       const size = box.getSize(new THREE.Vector3());
       const maxDim = Math.max(size.x, size.y, size.z);
-      const dist = maxDim * 2;
+      
+      const isMobile = window.innerWidth < 768;
+      const dist = maxDim * (isMobile ? 3.0 : 2.0);
+      
       camera.position.set(dist * 0.7, dist * 0.5, dist * 0.7);
       camera.lookAt(0, 0, 0);
     }
