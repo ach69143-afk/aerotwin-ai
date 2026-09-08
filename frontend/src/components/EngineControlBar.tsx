@@ -1,5 +1,6 @@
 import { useState, useCallback, memo } from 'react';
 import { useStore } from '../store/useStore';
+import { API_BASE } from '../config/api';
 
 interface EngineControlBarProps {
   /** Render a more compact version for inline use (e.g. OverviewPage) */
@@ -11,19 +12,19 @@ export const EngineControlBar = memo(function EngineControlBar({ compact = false
   const [selectedFault, setSelectedFault] = useState<string>('GENERIC');
 
   const startEngine = useCallback(async () => {
-    await fetch('http://localhost:8000/api/start-engine', { method: 'POST' });
+    await fetch(`${API_BASE}/api/start-engine`, { method: 'POST' });
   }, []);
 
   const holdEngine = useCallback(async () => {
-    await fetch('http://localhost:8000/api/hold-engine', { method: 'POST' });
+    await fetch(`${API_BASE}/api/hold-engine`, { method: 'POST' });
   }, []);
 
   const stopEngine = useCallback(async () => {
-    await fetch('http://localhost:8000/api/stop-engine', { method: 'POST' });
+    await fetch(`${API_BASE}/api/stop-engine`, { method: 'POST' });
   }, []);
 
   const simulateFault = useCallback(async () => {
-    await fetch('http://localhost:8000/api/simulate-fault', {
+    await fetch(`${API_BASE}/api/simulate-fault`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fault_type: selectedFault }),
@@ -31,11 +32,11 @@ export const EngineControlBar = memo(function EngineControlBar({ compact = false
   }, [selectedFault]);
 
   const stopFault = useCallback(async () => {
-    await fetch('http://localhost:8000/api/stop-fault', { method: 'POST' });
+    await fetch(`${API_BASE}/api/stop-fault`, { method: 'POST' });
   }, []);
 
   const resetSimulation = useCallback(async () => {
-    await fetch('http://localhost:8000/api/reset', { method: 'POST' });
+    await fetch(`${API_BASE}/api/reset`, { method: 'POST' });
     useStore.getState().clearHistory();
   }, []);
 

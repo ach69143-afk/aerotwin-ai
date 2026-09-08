@@ -1,6 +1,7 @@
 import { useStore } from '../store/useStore';
 import { ToggleLeft, ToggleRight, Settings as SettingsIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { WS_TELEMETRY_URL } from '../config/api';
 
 export function SettingsPage() {
   const settings = useStore(s => s.settings);
@@ -97,7 +98,7 @@ export function SettingsPage() {
           <div>
             <label className="text-xs font-mono text-zinc-500 uppercase tracking-widest block mb-2">WebSocket URL (Read-only)</label>
             <div className="px-4 py-2 bg-black border border-border/50 rounded-sm text-sm font-mono text-zinc-400">
-              ws://localhost:8000/ws/telemetry
+              {WS_TELEMETRY_URL}
             </div>
           </div>
           <div>

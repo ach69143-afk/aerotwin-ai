@@ -5,10 +5,11 @@ import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { WS_TELEMETRY_URL } from '../../config/api';
 
 export function AppLayout() {
   // Single WebSocket connection for the entire app
-  useTelemetrySocket('ws://localhost:8000/ws/telemetry');
+  useTelemetrySocket(WS_TELEMETRY_URL);
   const isReady = useStore((s) => s.telemetry !== null);
   const location = useLocation();
 
