@@ -80,16 +80,16 @@ function EngineModel() {
     cloned.scale.setScalar(scale);
     cloned.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
 
-    // Apply premium metallic material to all meshes
+    // Apply premium dark metallic material to all meshes
     const mats: THREE.MeshStandardMaterial[] = [];
     cloned.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
         const mat = new THREE.MeshStandardMaterial({
-          color: new THREE.Color(0.25, 0.28, 0.3), // dark gunmetal/steel
-          roughness: 0.4,
-          metalness: 0.7,
-          envMapIntensity: 1.2,
+          color: new THREE.Color(0.22, 0.25, 0.28), // dark gunmetal/steel
+          roughness: 0.38,
+          metalness: 0.75,
+          envMapIntensity: 1.0,
         });
         mesh.material = mat;
         mesh.castShadow = true;
@@ -116,7 +116,7 @@ function EngineModel() {
   }, [camera]);
 
   // Per-frame telemetry-driven animation
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     const telemetry = telemetryRef.current;
     if (!groupRef.current || !telemetry) return;
 
@@ -135,11 +135,13 @@ function EngineModel() {
     const vibTarget = telemetry.vibration * (1 + sm.faultIntensity * 3);
     sm.vibration += (vibTarget - sm.vibration) * lerpSpeed;
 
-    // Apply subtle positional jitter scaled to model size
+    // Smooth sinusoidal vibration instead of Math.random() jitter
+    // Uses multiple prime frequencies for organic mechanical feel
+    const time = state.clock.elapsedTime;
     const vibScale = 0.003 * sm.vibration;
-    groupRef.current.position.x = (Math.random() - 0.5) * vibScale;
-    groupRef.current.position.y = (Math.random() - 0.5) * vibScale;
-    groupRef.current.rotation.z = (Math.random() - 0.5) * vibScale * 0.02;
+    groupRef.current.position.x = Math.sin(time * 47.0) * vibScale + Math.sin(time * 13.7) * vibScale * 0.3;
+    groupRef.current.position.y = Math.sin(time * 31.0) * vibScale + Math.sin(time * 7.3) * vibScale * 0.3;
+    groupRef.current.rotation.z = Math.sin(time * 23.0) * vibScale * 0.02;
 
     // ── Thermal emissive (CHT) ──────────────────────────────
     // CHT 150°C → no glow, CHT 180°C → full thermal glow
@@ -228,16 +230,22 @@ export function DigitalTwin({ hideTitle }: { hideTitle?: boolean }) {
         <Canvas
           camera={{ position: [5, 3.5, 5], fov: 45 }}
           shadows
-          gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.2 }}
+          dpr={[1, 1.5]}
+          gl={{
+            antialias: true,
+            toneMapping: THREE.ACESFilmicToneMapping,
+            toneMappingExposure: 1.1,
+            powerPreference: 'high-performance',
+          }}
         >
           <color attach="background" args={['#05080D']} />
           <fog attach="fog" args={['#05080D', 8, 25]} />
 
-          {/* Lighting */}
-          <ambientLight intensity={0.4} color="#b0c4de" />
+          {/* Key Light — slightly reduced for professional look */}
+          <ambientLight intensity={0.35} color="#b0c4de" />
           <directionalLight
             position={[5, 8, 4]}
-            intensity={2.5}
+            intensity={2.0}
             color="#ffffff"
             castShadow
             shadow-mapSize-width={1024}
@@ -249,7 +257,9 @@ export function DigitalTwin({ hideTitle }: { hideTitle?: boolean }) {
           {/* Cyan Rim Light */}
           <pointLight position={[-4, -2, -3]} intensity={1.5} color="#06b6d4" />
           {/* Blue Fill Light */}
-          <pointLight position={[0, 3, -4]} intensity={0.8} color="#3b82f6" />
+          <pointLight position={[0, 3, -4]} intensity={0.6} color="#3b82f6" />
+          {/* Warm Fill from below — subtle depth */}
+          <pointLight position={[3, -3, 2]} intensity={0.3} color="#f59e0b" />
 
           {/* Environment for reflections */}
           <Environment preset="city" background={false} />
@@ -274,12 +284,12 @@ export function DigitalTwin({ hideTitle }: { hideTitle?: boolean }) {
             <EngineModel />
           </Suspense>
 
-          {/* Contact Shadows */}
+          {/* Contact Shadows — reduced blur for perf */}
           <ContactShadows
             position={[0, -1.49, 0]}
             opacity={0.5}
             scale={8}
-            blur={2.5}
+            blur={1.5}
             far={4}
             color="#000000"
           />

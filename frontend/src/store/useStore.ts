@@ -12,6 +12,12 @@ export interface Telemetry {
   anomalyScore: number;
   status: string;
   likelyFault?: string;
+  recommendation?: string;
+  recommendationReason?: string;
+  recommendationPriority?: string;
+  engineState?: string;
+  faultActive?: boolean;
+  faultType?: string;
 }
 
 export interface FaultEvent {
@@ -62,6 +68,12 @@ interface AppState {
   updateSettings: (partial: Partial<Settings>) => void;
 }
 
+// ── Mutable buffer for high-frequency telemetry history ──
+// This avoids creating a new array in Zustand state at 10Hz.
+// Only the throttled snapshot (4 FPS) copies into React state.
+const _historyBuffer: Telemetry[] = [];
+const HISTORY_MAX = 600; // ~60s at 10Hz
+
 export const useStore = create<AppState>((set, get) => ({
   // Core — preserved
   telemetry: null,
@@ -70,16 +82,19 @@ export const useStore = create<AppState>((set, get) => ({
   lastThrottleTime: 0,
   setTelemetry: (data) => {
     const state = get();
-    // Auto-add to history
-    const newHistory = [...state.telemetryHistory, data];
-    if (newHistory.length > 600) newHistory.shift(); // ~60s at 10Hz
+
+    // Push into mutable buffer — no React state update
+    _historyBuffer.push(data);
+    if (_historyBuffer.length > HISTORY_MAX) _historyBuffer.shift();
 
     // Auto-detect fault transitions and add events
     let events = state.faultEvents;
+    let eventsChanged = false;
     const prevStatus = state.previousStatus;
 
     if (prevStatus && prevStatus !== data.status) {
       const newEvents = [...events];
+      eventsChanged = true;
       if (data.status === 'ANOMALY DETECTED') {
         newEvents.push({
           id: `evt-${Date.now()}`,
@@ -138,25 +153,27 @@ export const useStore = create<AppState>((set, get) => ({
       events = newEvents;
     }
 
-    // Throttle for UI
+    // Throttle for UI — only update React state at ~4 FPS
     const now = Date.now();
     const shouldThrottleUpdate = now - state.lastThrottleTime > 250; // 4 FPS
 
     if (shouldThrottleUpdate) {
+      // Snapshot the mutable buffer into React state
+      const historySnapshot = _historyBuffer.slice();
       set({
         telemetry: data,
-        telemetryHistory: newHistory,
-        faultEvents: events,
+        telemetryHistory: historySnapshot,
+        faultEvents: eventsChanged ? events : state.faultEvents,
         previousStatus: data.status,
         throttledTelemetry: data,
-        throttledHistory: newHistory,
+        throttledHistory: historySnapshot,
         lastThrottleTime: now,
       });
     } else {
+      // Only update raw telemetry + events (no history array allocation)
       set({
         telemetry: data,
-        telemetryHistory: newHistory,
-        faultEvents: events,
+        ...(eventsChanged ? { faultEvents: events } : {}),
         previousStatus: data.status,
       });
     }
@@ -166,13 +183,14 @@ export const useStore = create<AppState>((set, get) => ({
 
   // Session history
   telemetryHistory: [],
-  addToHistory: (data) =>
-    set((state) => {
-      const newHistory = [...state.telemetryHistory, data];
-      if (newHistory.length > 600) newHistory.shift();
-      return { telemetryHistory: newHistory };
-    }),
-  clearHistory: () => set({ telemetryHistory: [], faultEvents: [] }),
+  addToHistory: (data) => {
+    _historyBuffer.push(data);
+    if (_historyBuffer.length > HISTORY_MAX) _historyBuffer.shift();
+  },
+  clearHistory: () => {
+    _historyBuffer.length = 0;
+    set({ telemetryHistory: [], throttledHistory: [], faultEvents: [] });
+  },
 
   // Fault events
   faultEvents: [],

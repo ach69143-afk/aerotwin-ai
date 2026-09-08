@@ -1,6 +1,6 @@
-import { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { DigitalTwin } from '../components/DigitalTwin';
+import { EngineControlBar } from '../components/EngineControlBar';
 import { Activity, Thermometer, Droplets, Vibrate } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -27,12 +27,12 @@ const TelemetryCard = ({ title, value, unit, icon: Icon, status }: { title: stri
         <Icon size={18} />
       </div>
       
-      {/* Background glow for warning/critical */}
+      {/* Background glow for warning/critical — subtle pulse */}
       {(status === 'warning' || status === 'critical') && (
         <motion.div 
           initial={{ opacity: 0 }}
-          animate={{ opacity: [0.1, 0.3, 0.1] }}
-          transition={{ repeat: Infinity, duration: 2 }}
+          animate={{ opacity: [0.05, 0.15, 0.05] }}
+          transition={{ repeat: Infinity, duration: 2.5 }}
           className={`absolute inset-0 bg-current opacity-10 pointer-events-none ${colors[status].split(' ')[0]}`}
         />
       )}
@@ -43,24 +43,8 @@ const TelemetryCard = ({ title, value, unit, icon: Icon, status }: { title: stri
 export function OverviewPage() {
   const telemetry = useStore((s) => s.throttledTelemetry);
   const telemetryHistory = useStore((s) => s.throttledHistory);
-  const [selectedFault, setSelectedFault] = useState<string>('GENERIC');
 
   if (!telemetry) return null;
-
-  const simulateFault = async () => {
-    await fetch('http://localhost:8000/api/simulate-fault', { 
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ fault_type: selectedFault })
-    });
-  };
-
-  const resetSimulation = async () => {
-    await fetch('http://localhost:8000/api/reset', { method: 'POST' });
-    useStore.getState().clearHistory();
-  };
 
   const chtStatus = telemetry.cht < 165 ? 'normal' : telemetry.cht < 180 ? 'warning' : 'critical';
   const riskColor = telemetry.risk === 'NORMAL' ? 'text-emerald-400' : telemetry.risk === 'WARNING' ? 'text-amber-400' : 'text-red-500';
@@ -69,7 +53,12 @@ export function OverviewPage() {
   const chartData = telemetryHistory.slice(-60);
 
   return (
-    <div className="page-container">
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+      className="page-container"
+    >
       
       {/* Top KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0">
@@ -77,10 +66,10 @@ export function OverviewPage() {
           { label: 'ENGINE HEALTH', value: `${telemetry.healthPct.toFixed(1)}%`, color: telemetry.healthPct > 90 ? 'text-emerald-400' : 'text-amber-400' },
           { label: 'RISK LEVEL', value: telemetry.risk, color: riskColor },
           { label: 'RUL (ESTIMATED)', value: telemetry.rul, color: 'text-cyan-400' },
-          { label: 'MISSION STATUS', value: telemetry.status === 'HEALTHY' ? 'SAFE' : 'ABORT', color: telemetry.status === 'HEALTHY' ? 'text-emerald-400' : 'text-red-500' }
+          { label: 'MISSION STATUS', value: telemetry.risk === 'NORMAL' ? 'SAFE' : telemetry.risk === 'WARNING' ? 'WARNING' : telemetry.risk === 'CRITICAL' ? 'CRITICAL' : 'ABORT', color: telemetry.risk === 'NORMAL' ? 'text-emerald-400' : telemetry.risk === 'WARNING' ? 'text-amber-400' : 'text-red-500' }
         ].map((kpi, idx) => (
           <motion.div 
-            initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }}
+            initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.08, duration: 0.2 }}
             key={kpi.label} 
             className="p-5 bg-gradient-to-br from-card/80 to-card/30 backdrop-blur-md border border-border/50 rounded-sm shadow-lg relative overflow-hidden"
           >
@@ -90,6 +79,11 @@ export function OverviewPage() {
             <div className="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/5 to-transparent" />
           </motion.div>
         ))}
+      </div>
+
+      {/* Control Row — uses shared EngineControlBar */}
+      <div className="bg-card/80 p-3 rounded-sm border border-border/50 shadow-lg mt-2 mb-2 shrink-0">
+        <EngineControlBar compact />
       </div>
 
       {/* Main Grid */}
@@ -113,23 +107,6 @@ export function OverviewPage() {
         <div className="xl:col-span-6 flex flex-col gap-2 relative">
            <div className="flex justify-between items-center mb-1">
              <h2 className="text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase">Digital Twin</h2>
-             <div className="flex gap-2 items-center">
-               <select 
-                 value={selectedFault}
-                 onChange={(e) => setSelectedFault(e.target.value)}
-                 className="px-2 py-1 bg-background border border-border rounded-sm text-[10px] tracking-widest font-mono text-muted-foreground focus:outline-none"
-               >
-                 <option value="GENERIC">GENERIC</option>
-                 <option value="MISFIRE">MISFIRE</option>
-                 <option value="INJECTOR_ABNORMALITY">INJECTOR ABNORMALITY</option>
-                 <option value="LUBRICATION_ISSUE">LUBRICATION ISSUE</option>
-                 <option value="OVERHEATING">OVERHEATING</option>
-                 <option value="ABNORMAL_VIBRATION">ABNORMAL VIBRATION</option>
-                 <option value="SENSOR_DRIFT">SENSOR DRIFT</option>
-               </select>
-               <button onClick={simulateFault} className="px-4 py-1 bg-red-950/30 text-red-400 border border-red-900/50 rounded-sm text-[10px] tracking-widest font-mono hover:bg-red-900/50 transition-all hover:shadow-[0_0_12px_rgba(239,68,68,0.2)]">SIMULATE FAULT</button>
-               <button onClick={resetSimulation} className="px-4 py-1 bg-cyan-950/30 text-cyan-400 border border-cyan-900/50 rounded-sm text-[10px] tracking-widest font-mono hover:bg-cyan-900/50 transition-all hover:shadow-[0_0_12px_rgba(6,182,212,0.2)]">RESET</button>
-             </div>
            </div>
            <div className="flex-1 rounded-sm overflow-hidden border border-border/60 shadow-2xl relative bg-[#040508]">
              <DigitalTwin hideTitle />
@@ -169,17 +146,33 @@ export function OverviewPage() {
                    initial={{ opacity: 0, y: 5 }}
                    animate={{ opacity: 1, y: 0 }}
                    exit={{ opacity: 0, y: -5 }}
-                   className={`mt-6 p-4 border rounded-sm ${telemetry.status === 'HEALTHY' ? 'bg-emerald-950/10 border-emerald-900/30' : 'bg-amber-950/10 border-amber-900/30'}`}
+                   transition={{ duration: 0.2 }}
+                   className={`mt-6 p-4 border rounded-sm ${telemetry.status === 'HEALTHY' || telemetry.status === 'STANDBY' ? 'bg-emerald-950/10 border-emerald-900/30' : telemetry.recommendationPriority === 'CRITICAL' ? 'bg-red-950/20 border-red-900/50' : 'bg-amber-950/10 border-amber-900/30'}`}
                  >
                    <p className="text-[9px] text-muted-foreground mb-2 font-sans uppercase tracking-widest flex items-center gap-2">
-                     <span className={`w-1 h-1 rounded-full ${telemetry.status === 'HEALTHY' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-                     System Recommendation
+                     <span className={`w-1 h-1 rounded-full ${telemetry.status === 'HEALTHY' || telemetry.status === 'STANDBY' ? 'bg-emerald-400' : telemetry.recommendationPriority === 'CRITICAL' ? 'bg-red-500' : 'bg-amber-400'}`} />
+                     AI-Assisted Recommendation
                    </p>
-                   <p className={`text-xs leading-relaxed ${telemetry.status === 'HEALTHY' ? 'text-emerald-400/80' : 'text-amber-400'}`}>
-                     {telemetry.status === 'HEALTHY' 
-                      ? "No significant degradation pattern detected. Continue normal operation." 
-                      : "Degradation pattern detected. Consider reducing engine load and initiating Return-to-Base planning."}
+                   <p className={`text-xs font-bold leading-relaxed mb-4 ${telemetry.status === 'HEALTHY' || telemetry.status === 'STANDBY' ? 'text-emerald-400' : telemetry.recommendationPriority === 'CRITICAL' ? 'text-red-400' : 'text-amber-400'}`}>
+                     {telemetry.recommendation?.toUpperCase()}
                    </p>
+                   {telemetry.status !== 'HEALTHY' && telemetry.status !== 'STANDBY' && (
+                     <>
+                       <div className="border-t border-border/50 pt-2 mt-2">
+                         <p className="text-[9px] text-muted-foreground uppercase tracking-widest">REASON</p>
+                         <p className="text-[10px] text-zinc-300 mt-1">{telemetry.recommendationReason}</p>
+                       </div>
+                       <div className="flex justify-between items-center mt-3">
+                         <div>
+                           <p className="text-[9px] text-muted-foreground uppercase tracking-widest">PRIORITY</p>
+                           <p className={`text-[10px] font-bold ${telemetry.recommendationPriority === 'CRITICAL' ? 'text-red-500' : 'text-amber-500'}`}>{telemetry.recommendationPriority}</p>
+                         </div>
+                         <div className="text-[8px] bg-zinc-900/80 px-2 py-1 rounded-sm text-zinc-500 border border-zinc-800">
+                           PROTOTYPE SIMULATION
+                         </div>
+                       </div>
+                     </>
+                   )}
                  </motion.div>
                </AnimatePresence>
             </div>
@@ -210,6 +203,6 @@ export function OverviewPage() {
         </div>
       </div>
 
-    </div>
+    </motion.div>
   );
 }

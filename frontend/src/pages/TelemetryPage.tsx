@@ -1,5 +1,6 @@
 import { useStore } from '../store/useStore';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { motion } from 'framer-motion';
 
 export function TelemetryPage() {
   const history = useStore(s => s.throttledHistory);
@@ -12,7 +13,7 @@ export function TelemetryPage() {
   const tableData = [...history].reverse().slice(0, 20);
 
   return (
-    <div className="page-container">
+    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="page-container">
       <div className="flex justify-between items-end mb-4">
         <div>
           <h1 className="text-xl font-bold font-sans tracking-widest text-cyan-400 uppercase">Raw Telemetry Feed</h1>
@@ -80,6 +81,6 @@ export function TelemetryPage() {
           </table>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

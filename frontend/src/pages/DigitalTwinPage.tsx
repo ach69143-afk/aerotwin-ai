@@ -1,59 +1,71 @@
 import { DigitalTwin } from '../components/DigitalTwin';
+import { EngineControlBar } from '../components/EngineControlBar';
 import { useStore } from '../store/useStore';
+import { motion } from 'framer-motion';
 
 export function DigitalTwinPage() {
   const telemetry = useStore(s => s.throttledTelemetry);
 
-  const simulateFault = async () => {
-    await fetch('http://localhost:8000/api/simulate-fault', { method: 'POST' });
-  };
-
-  const resetSimulation = async () => {
-    await fetch('http://localhost:8000/api/reset', { method: 'POST' });
-    useStore.getState().clearHistory();
-  };
-
   return (
-    <div className="page-container p-0">
-      <div className="relative w-full h-full flex flex-col">
-        {/* Header Overlay */}
-        <div className="absolute top-0 left-0 right-0 p-6 z-10 flex justify-between items-start pointer-events-none">
-          <div>
-            <h1 className="text-xl font-bold font-sans tracking-widest text-cyan-400 uppercase drop-shadow-md">Interactive Digital Twin</h1>
-            <p className="text-xs font-mono tracking-widest text-zinc-300 mt-1 drop-shadow-md">3D SPATIAL TELEMETRY MAPPING</p>
-          </div>
-          
-          <div className="flex gap-3 pointer-events-auto">
-            <button onClick={simulateFault} className="px-4 py-2 bg-red-950/80 backdrop-blur-md text-red-400 border border-red-900/50 rounded-sm text-xs tracking-widest font-mono hover:bg-red-900/80 transition-all shadow-lg">SIMULATE FAULT</button>
-            <button onClick={resetSimulation} className="px-4 py-2 bg-cyan-950/80 backdrop-blur-md text-cyan-400 border border-cyan-900/50 rounded-sm text-xs tracking-widest font-mono hover:bg-cyan-900/80 transition-all shadow-lg">RESET SIMULATION</button>
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+      className="page-container p-0 gap-0"
+    >
+      <div className="w-full h-full flex flex-col min-h-0">
+
+        {/* ── Engine Control Bar ─────────────────────────────────
+             Normal document flow — never overlaps the viewport. */}
+        <div className="shrink-0 px-4 py-3 border-b border-cyan-900/20 bg-[#0a0a0c]/90 backdrop-blur-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            {/* Left: title */}
+            <div className="shrink-0 mr-4">
+              <h1 className="text-lg font-bold font-sans tracking-widest text-cyan-400 uppercase leading-tight">
+                Interactive Digital Twin
+              </h1>
+              <p className="text-[10px] font-mono tracking-widest text-zinc-500 mt-0.5">
+                3D SPATIAL TELEMETRY MAPPING
+              </p>
+            </div>
+
+            {/* Right: controls — wraps on narrow screens */}
+            <EngineControlBar />
           </div>
         </div>
 
-        {/* Telemetry Overlay */}
-        <div className="absolute left-6 top-1/2 -translate-y-1/2 z-10 w-48 flex flex-col gap-4 pointer-events-none">
-          {telemetry && (
-            <>
-              <div className="bg-black/60 backdrop-blur-md border border-white/10 p-4 rounded-sm">
-                <div className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Rotational Speed</div>
-                <div className="text-lg font-mono text-cyan-400">{telemetry.rpm.toFixed(0)} RPM</div>
-              </div>
-              <div className="bg-black/60 backdrop-blur-md border border-white/10 p-4 rounded-sm">
-                <div className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Thermal Load</div>
-                <div className={`text-lg font-mono ${telemetry.cht > 165 ? 'text-amber-400' : 'text-emerald-400'}`}>{telemetry.cht.toFixed(1)} °C</div>
-              </div>
-              <div className="bg-black/60 backdrop-blur-md border border-white/10 p-4 rounded-sm">
-                <div className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Structural Vib</div>
-                <div className={`text-lg font-mono ${telemetry.vibration > 0.4 ? 'text-amber-400' : 'text-emerald-400'}`}>{telemetry.vibration.toFixed(2)} mm/s</div>
-              </div>
-            </>
-          )}
-        </div>
+        {/* ── 3D Viewport with overlays ────────────────────────── */}
+        <div className="flex-1 min-h-0 relative bg-[#09090b]">
+          {/* Left telemetry overlay — positioned inside the viewport only */}
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 z-10 w-44 flex flex-col gap-3 pointer-events-none">
+            {telemetry && (
+              <>
+                <div className="bg-[#05080D]/70 backdrop-blur-md border border-cyan-500/20 p-3 rounded-sm">
+                  <div className="text-[9px] text-zinc-500 uppercase tracking-widest mb-0.5">Rotational Speed</div>
+                  <div className="text-base font-mono text-cyan-400">{telemetry.rpm.toFixed(0)} RPM</div>
+                </div>
+                <div className="bg-[#05080D]/70 backdrop-blur-md border border-cyan-500/20 p-3 rounded-sm">
+                  <div className="text-[9px] text-zinc-500 uppercase tracking-widest mb-0.5">Thermal Load</div>
+                  <div className={`text-base font-mono ${telemetry.cht > 165 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                    {telemetry.cht.toFixed(1)} °C
+                  </div>
+                </div>
+                <div className="bg-[#05080D]/70 backdrop-blur-md border border-cyan-500/20 p-3 rounded-sm">
+                  <div className="text-[9px] text-zinc-500 uppercase tracking-widest mb-0.5">Structural Vib</div>
+                  <div className={`text-base font-mono ${telemetry.vibration > 0.4 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                    {telemetry.vibration.toFixed(2)} mm/s
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
 
-        {/* 3D Canvas */}
-        <div className="flex-1 w-full bg-[#09090b]">
-           <DigitalTwin hideTitle={true} />
+          {/* 3D Canvas — fills the remaining viewport area */}
+          <div className="absolute inset-0">
+            <DigitalTwin hideTitle={true} />
+          </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

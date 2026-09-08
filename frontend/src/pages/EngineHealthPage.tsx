@@ -12,7 +12,7 @@ export function EngineHealthPage() {
   const avgRpm = history.length > 0 ? history.reduce((sum, h) => sum + h.rpm, 0) / history.length : telemetry.rpm;
 
   return (
-    <div className="page-container">
+    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="page-container">
       <h1 className="text-xl font-bold font-sans tracking-widest text-cyan-400 mb-2 uppercase">Engine Health Analytics</h1>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -87,6 +87,6 @@ export function EngineHealthPage() {
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

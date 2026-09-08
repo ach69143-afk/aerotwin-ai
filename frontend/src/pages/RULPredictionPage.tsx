@@ -1,6 +1,7 @@
 import { useStore } from '../store/useStore';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Clock } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export function RULPredictionPage() {
   const telemetry = useStore(s => s.throttledTelemetry);
@@ -19,7 +20,7 @@ export function RULPredictionPage() {
   });
 
   return (
-    <div className="page-container">
+    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="page-container">
       <div className="flex justify-between items-end mb-2">
         <div>
           <h1 className="text-xl font-bold font-sans tracking-widest text-cyan-400 uppercase">Remaining Useful Life (RUL)</h1>
@@ -62,6 +63,6 @@ export function RULPredictionPage() {
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

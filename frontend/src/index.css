@@ -61,10 +61,6 @@
   0%, 100% { opacity: 0.4; }
   50% { opacity: 1; }
 }
-@keyframes scan-line {
-  0% { transform: translateY(-100%); }
-  100% { transform: translateY(100%); }
-}
 @keyframes data-flow {
   0% { background-position: 0% 50%; }
   100% { background-position: 200% 50%; }
@@ -72,9 +68,6 @@
 
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
-}
-.animate-scan-line {
-  animation: scan-line 3s linear infinite;
 }
 
 /* Technical grid background utility */

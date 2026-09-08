@@ -1,5 +1,6 @@
 import { Shield, CheckCircle, XCircle } from 'lucide-react';
 import { useStore } from '../store/useStore';
+import { motion } from 'framer-motion';
 
 export function MissionReliabilityPage() {
   const telemetry = useStore(s => s.throttledTelemetry);
@@ -9,7 +10,7 @@ export function MissionReliabilityPage() {
   const isSafe = telemetry.status === 'HEALTHY';
 
   return (
-    <div className="page-container">
+    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="page-container">
       <div className="flex justify-between items-end mb-2">
         <div>
           <h1 className="text-xl font-bold font-sans tracking-widest text-cyan-400 uppercase">Mission Reliability</h1>
@@ -77,6 +78,6 @@ export function MissionReliabilityPage() {
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

@@ -26,7 +26,7 @@ export function FaultAnalysisPage() {
   };
 
   return (
-    <div className="page-container">
+    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="page-container">
       <div className="flex justify-between items-end mb-2">
         <div>
           <h1 className="text-xl font-bold font-sans tracking-widest text-cyan-400 uppercase">Fault Analysis & Diagnostics</h1>
@@ -73,6 +73,6 @@ export function FaultAnalysisPage() {
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
