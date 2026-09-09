@@ -51,6 +51,7 @@ function EngineModel() {
   const { scene } = useGLTF(ENGINE_MODEL_PATH, true, true);
   const groupRef = useRef<THREE.Group>(null);
   const { camera } = useThree();
+  const animationIntensity = useStore((state) => state.settings.animationIntensity);
 
   // Ref-based telemetry subscription — zero React re-renders
   const telemetryRef = useRef(useStore.getState().telemetry);
@@ -141,7 +142,7 @@ function EngineModel() {
     // Smooth sinusoidal vibration instead of Math.random() jitter
     // Uses multiple prime frequencies for organic mechanical feel
     const time = state.clock.elapsedTime;
-    const vibScale = 0.003 * sm.vibration;
+    const vibScale = 0.003 * sm.vibration * animationIntensity;
     groupRef.current.position.x = Math.sin(time * 47.0) * vibScale + Math.sin(time * 13.7) * vibScale * 0.3;
     groupRef.current.position.y = Math.sin(time * 31.0) * vibScale + Math.sin(time * 7.3) * vibScale * 0.3;
     groupRef.current.rotation.z = Math.sin(time * 23.0) * vibScale * 0.02;
@@ -151,7 +152,7 @@ function EngineModel() {
     const thermalTarget = Math.max(0, Math.min(1, (telemetry.cht - 150) / 30));
     sm.thermalT += (thermalTarget - sm.thermalT) * lerpSpeed;
 
-    const t = sm.thermalT;
+    const t = sm.thermalT * animationIntensity;
     const f = sm.faultIntensity;
     const rpmRatio = Math.max(0, Math.min(1, telemetry.rpm / 5000));
 
@@ -214,6 +215,23 @@ function EngineModel() {
   );
 }
 
+function ComponentLabels() {
+  return (
+    <group>
+      <Html position={[2.5, 1.3, 0]} distanceFactor={10} className="pointer-events-none">
+        <div className="whitespace-nowrap border border-cyan-500/40 bg-[#05080D]/85 px-2 py-1 text-[9px] font-mono tracking-wider text-cyan-300">
+          CYLINDER BANK
+        </div>
+      </Html>
+      <Html position={[-2.3, -0.7, 0]} distanceFactor={10} className="pointer-events-none">
+        <div className="whitespace-nowrap border border-cyan-500/40 bg-[#05080D]/85 px-2 py-1 text-[9px] font-mono tracking-wider text-cyan-300">
+          LUBRICATION SYSTEM
+        </div>
+      </Html>
+    </group>
+  );
+}
+
 // Preload the model so Suspense can show the loading state
 useGLTF.preload(ENGINE_MODEL_PATH, true, true);
 
@@ -265,6 +283,8 @@ function TelemetryOverlay({ hideTitle }: { hideTitle?: boolean }) {
 // ─── Main DigitalTwin Component ─────────────────────────────────────
 
 export function DigitalTwin({ hideTitle }: { hideTitle?: boolean }) {
+  const settings = useStore((state) => state.settings);
+
   return (
     <div className="w-full h-full min-h-[320px] md:min-h-[400px] rounded-sm relative bg-[#05080D] overflow-hidden border border-[#06b6d4]/20 shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]">
       <ModelErrorBoundary>
@@ -324,6 +344,7 @@ export function DigitalTwin({ hideTitle }: { hideTitle?: boolean }) {
           <Suspense fallback={<LoadingIndicator />}>
             <EngineModel />
           </Suspense>
+          {settings.showComponentLabels && <ComponentLabels />}
 
           {/* Contact Shadows — reduced blur for perf */}
           <ContactShadows
@@ -339,6 +360,8 @@ export function DigitalTwin({ hideTitle }: { hideTitle?: boolean }) {
           <OrbitControls
             enableDamping
             dampingFactor={0.05}
+            autoRotate={settings.autoRotation}
+            autoRotateSpeed={0.6}
             minDistance={2}
             maxDistance={12}
             maxPolarAngle={Math.PI * 0.85}
@@ -347,7 +370,7 @@ export function DigitalTwin({ hideTitle }: { hideTitle?: boolean }) {
         </Canvas>
       </ModelErrorBoundary>
       
-      <TelemetryOverlay hideTitle={hideTitle} />
+      {settings.showTelemetryOverlay && <TelemetryOverlay hideTitle={hideTitle} />}
     </div>
   );
 }

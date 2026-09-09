@@ -1,6 +1,9 @@
 import pandas as pd
 from sklearn.ensemble import IsolationForest
 
+
+FEATURE_COLUMNS = ['rpm', 'cht', 'oil_pressure', 'vibration']
+
 class EngineHealthMonitor:
     def __init__(self):
         # Isolation Forest anomaly detect karta hai
@@ -10,9 +13,22 @@ class EngineHealthMonitor:
 
     def train_model(self, normal_data):
         df = pd.DataFrame(normal_data)
-        features = df[['rpm', 'cht', 'oil_pressure', 'vibration']]
+        features = df[FEATURE_COLUMNS]
+        if features.empty or features.isnull().values.any():
+            raise ValueError("Normal training data must include finite telemetry features.")
         self.ai_model.fit(features)
+        self.baseline_data = normal_data
         self.is_trained = True
+
+    def detect_safety_fault(self, data):
+        """Apply deterministic limits that must not depend on an ML prediction."""
+        if data['oil_pressure'] < 2.0:
+            return "LUBRICATION_ISSUE"
+        if data['cht'] >= 165:
+            return "OVERHEATING"
+        if data['vibration'] >= 1.2:
+            return "ABNORMAL_VIBRATION"
+        return None
 
     def diagnose(self, data):
         # Very simple heuristic rules for diagnostic layer
@@ -93,7 +109,7 @@ class EngineHealthMonitor:
         fault_severity = current_data.get('fault_severity', 0.0)
         
         df_current = pd.DataFrame([current_data])
-        features = df_current[['rpm', 'cht', 'oil_pressure', 'vibration']]
+        features = df_current[FEATURE_COLUMNS]
         
         # If engine is OFF or STARTING (and RPM very low), don't flag anomalies unless there's a serious sensor drift
         if engine_state == "OFF":
@@ -101,6 +117,7 @@ class EngineHealthMonitor:
             
         prediction = self.ai_model.predict(features)[0]
         anomaly_score = self.ai_model.decision_function(features)[0]
+        safety_fault = self.detect_safety_fault(current_data)
         
         # Avoid false positives during startup sequence if they happen
         if engine_state == "STARTING" and current_data['rpm'] < 4000:
@@ -110,6 +127,14 @@ class EngineHealthMonitor:
         # Deterministic override if fault is active (Synthetic Demo Requirement)
         if fault_active and fault_severity > 0.05:
             prediction = -1
+
+        # Safety limits override the statistical model.  This protects against
+        # a sparse or stale baseline failing to flag a dangerous measurement.
+        if safety_fault:
+            prediction = -1
+
+        if prediction == -1 and anomaly_score >= 0:
+            anomaly_score = -0.01
             
         health_status = "HEALTHY" if prediction == 1 else "ANOMALY DETECTED"
         risk_level = "NORMAL"
@@ -152,7 +177,7 @@ class EngineHealthMonitor:
             if fault_active and fault_type != "NONE":
                 likely_fault = fault_type
             else:
-                likely_fault = self.diagnose(current_data)
+                likely_fault = safety_fault or self.diagnose(current_data)
                 
             rec_data = self.get_recommendation(likely_fault)
             

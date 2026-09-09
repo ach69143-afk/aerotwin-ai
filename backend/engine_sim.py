@@ -21,6 +21,8 @@ class AeroEngineSimulator:
     def start_engine(self):
         if self.engine_state == "OFF":
             self.engine_state = "STARTING"
+            return True
+        return False
             
     def stop_engine(self):
         if self.engine_state in ["STARTING", "RUNNING", "HOLD"]:
@@ -28,25 +30,35 @@ class AeroEngineSimulator:
             self.fault_active = False
             self.fault_severity = 0.0
             self.fault_type = "NONE"
+            return True
+        return False
             
     def hold_engine(self):
         if self.engine_state == "RUNNING":
             self.engine_state = "HOLD"
+            return True
+        return False
             
     def resume_engine(self):
         if self.engine_state == "HOLD":
             self.engine_state = "RUNNING"
+            return True
+        return False
             
     def stop_fault(self):
+        was_active = self.fault_active
         self.fault_active = False
         self.fault_severity = 0.0
         self.fault_type = "NONE"
+        return was_active
 
     def trigger_fault(self, fault_type: str = "GENERIC"):
         if self.engine_state != "OFF":
             self.fault_active = True
             self.fault_type = fault_type
             self.fault_severity = 0.0
+            return True
+        return False
 
     def get_sensor_data(self):
         current_time = time.time()

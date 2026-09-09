@@ -1,6 +1,6 @@
 import { useState, useCallback, memo } from 'react';
 import { useStore } from '../store/useStore';
-import { API_BASE } from '../config/api';
+import { API_AUTH_HEADERS, API_BASE } from '../config/api';
 
 interface EngineControlBarProps {
   /** Render a more compact version for inline use (e.g. OverviewPage) */
@@ -10,35 +10,56 @@ interface EngineControlBarProps {
 export const EngineControlBar = memo(function EngineControlBar({ compact = false }: EngineControlBarProps) {
   const telemetry = useStore((s) => s.throttledTelemetry);
   const [selectedFault, setSelectedFault] = useState<string>('GENERIC');
+  const [controlError, setControlError] = useState<string | null>(null);
+
+  const postControl = useCallback(async (path: string, body?: object) => {
+    try {
+      const response = await fetch(`${API_BASE}${path}`, {
+        method: 'POST',
+        headers: {
+          ...API_AUTH_HEADERS,
+          ...(body ? { 'Content-Type': 'application/json' } : {}),
+        },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.detail || `Request failed (${response.status})`);
+      }
+      setControlError(null);
+      return true;
+    } catch (error) {
+      setControlError(error instanceof Error ? error.message : 'Control request failed.');
+      return false;
+    }
+  }, []);
 
   const startEngine = useCallback(async () => {
-    await fetch(`${API_BASE}/api/start-engine`, { method: 'POST' });
-  }, []);
+    await postControl('/api/start-engine');
+  }, [postControl]);
 
   const holdEngine = useCallback(async () => {
-    await fetch(`${API_BASE}/api/hold-engine`, { method: 'POST' });
-  }, []);
+    await postControl('/api/hold-engine');
+  }, [postControl]);
 
   const stopEngine = useCallback(async () => {
-    await fetch(`${API_BASE}/api/stop-engine`, { method: 'POST' });
-  }, []);
+    await postControl('/api/stop-engine');
+  }, [postControl]);
 
   const simulateFault = useCallback(async () => {
-    await fetch(`${API_BASE}/api/simulate-fault`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fault_type: selectedFault }),
-    });
-  }, [selectedFault]);
+    await postControl('/api/simulate-fault', { fault_type: selectedFault });
+  }, [postControl, selectedFault]);
 
   const stopFault = useCallback(async () => {
-    await fetch(`${API_BASE}/api/stop-fault`, { method: 'POST' });
-  }, []);
+    await postControl('/api/stop-fault');
+  }, [postControl]);
 
   const resetSimulation = useCallback(async () => {
-    await fetch(`${API_BASE}/api/reset`, { method: 'POST' });
-    useStore.getState().clearHistory();
-  }, []);
+    if (await postControl('/api/reset')) {
+      useStore.getState().clearHistory();
+    }
+  }, [postControl]);
 
   const engineState = telemetry?.engineState;
 
@@ -110,6 +131,11 @@ export const EngineControlBar = memo(function EngineControlBar({ compact = false
           RESET
         </button>
       </div>
+      {controlError && (
+        <p role="alert" className="w-full text-[10px] font-mono text-red-400">
+          CONTROL ERROR: {controlError}
+        </p>
+      )}
     </div>
   );
 });

@@ -11,6 +11,7 @@
  */
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined) || 'http://localhost:8000';
+const CONTROL_TOKEN = import.meta.env.VITE_CONTROL_TOKEN as string | undefined;
 
 // Strip any trailing slash so callers can safely append paths.
 export const API_BASE = API_URL.replace(/\/+$/, '');
@@ -21,3 +22,11 @@ export const WS_BASE = API_BASE
 
 /** Full WebSocket telemetry endpoint. */
 export const WS_TELEMETRY_URL = `${WS_BASE}/ws/telemetry`;
+
+/**
+ * Optional operator credential for protected control endpoints. Do not put a
+ * production secret in a public dashboard; use an authenticated proxy instead.
+ */
+export const API_AUTH_HEADERS = CONTROL_TOKEN
+  ? { Authorization: `Bearer ${CONTROL_TOKEN}` }
+  : {};
