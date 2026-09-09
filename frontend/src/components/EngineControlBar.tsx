@@ -25,6 +25,11 @@ export const EngineControlBar = memo(function EngineControlBar({ compact = false
 
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
+        console.error('Control request failed:', {
+          endpoint: `${API_BASE}${path}`,
+          status: response.status,
+          body: payload
+        });
         throw new Error(payload?.detail || `Request failed (${response.status})`);
       }
       setControlError(null);
