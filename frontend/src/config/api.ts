@@ -27,6 +27,6 @@ export const WS_TELEMETRY_URL = `${WS_BASE}/ws/telemetry`;
  * Optional operator credential for protected control endpoints. Do not put a
  * production secret in a public dashboard; use an authenticated proxy instead.
  */
-export const API_AUTH_HEADERS = CONTROL_TOKEN
+export const API_AUTH_HEADERS: Record<string, string> = CONTROL_TOKEN
   ? { Authorization: `Bearer ${CONTROL_TOKEN}` }
   : {};

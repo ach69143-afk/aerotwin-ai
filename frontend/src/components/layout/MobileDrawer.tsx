@@ -70,9 +70,10 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
               </div>
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-sm text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
+                aria-label="Close navigation"
+                className="w-[48px] h-[48px] flex items-center justify-center rounded-sm text-zinc-400 hover:text-white hover:bg-white/10 active:bg-white/20 transition-colors"
               >
-                <X size={18} />
+                <X size={24} />
               </button>
             </div>
 

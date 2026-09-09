@@ -35,17 +35,18 @@ export function TopBar({ onMenuClick }: TopBarProps) {
   ];
 
   return (
-    <div className="relative h-12 md:h-10 border-b border-border/30 bg-[#0c0c0e]/80 flex items-center pl-[64px] pr-3 md:px-5 gap-2 md:gap-6 shrink-0 select-none overflow-hidden z-50 pointer-events-auto">
+    <div className="relative h-12 md:h-10 border-b border-border/30 bg-[#0c0c0e]/80 flex items-center pl-[64px] pr-3 md:px-5 gap-2 md:gap-6 shrink-0 select-none z-50 pointer-events-auto">
       {/* Mobile Menu Button */}
       <button 
         onClick={onMenuClick}
-        className="md:hidden absolute left-[16px] top-1/2 -translate-y-1/2 w-[48px] h-[48px] flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 rounded-sm shrink-0 z-50 pointer-events-auto"
+        aria-label="Open navigation"
+        className="md:hidden absolute left-[12px] top-0 w-[48px] h-[48px] flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 active:bg-white/20 rounded-sm shrink-0 z-50 pointer-events-auto transition-colors"
       >
-        <Menu size={18} />
+        <Menu size={24} />
       </button>
 
       {/* Mobile Title (hidden on md and above) */}
-      <div className="flex md:hidden items-center gap-2 text-[10px] tracking-[0.15em] font-mono font-medium text-zinc-300">
+      <div className="flex md:hidden items-center gap-2 text-[10px] tracking-[0.15em] font-mono font-medium text-zinc-300 truncate">
         <span>AEROTWIN AI</span>
         <span className="text-zinc-600">•</span>
         <span className={isConnected ? 'text-emerald-400' : 'text-red-400'}>

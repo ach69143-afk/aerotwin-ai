@@ -111,8 +111,9 @@ function EngineModel() {
       const size = box.getSize(new THREE.Vector3());
       const maxDim = Math.max(size.x, size.y, size.z);
       
-      const isMobile = window.innerWidth < 768;
-      const dist = maxDim * (isMobile ? 3.0 : 2.0);
+      const aspect = (camera as THREE.PerspectiveCamera).aspect || (window.innerWidth / window.innerHeight);
+      const distMultiplier = aspect < 1 ? 2.5 / aspect : 2.0;
+      const dist = maxDim * distMultiplier;
       
       camera.position.set(dist * 0.7, dist * 0.5, dist * 0.7);
       camera.lookAt(0, 0, 0);
