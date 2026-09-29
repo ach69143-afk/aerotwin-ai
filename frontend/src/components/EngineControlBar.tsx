@@ -9,7 +9,7 @@ interface EngineControlBarProps {
 
 export const EngineControlBar = memo(function EngineControlBar({ compact = false }: EngineControlBarProps) {
   const telemetry = useStore((s) => s.throttledTelemetry);
-  const [selectedFault, setSelectedFault] = useState<string>('GENERIC');
+  const [selectedFault, setSelectedFault] = useState<string>('TURBOCHARGER_BOOST_LEAK');
   const [controlError, setControlError] = useState<string | null>(null);
 
   const postControl = useCallback(async (path: string, body?: object) => {
@@ -69,33 +69,33 @@ export const EngineControlBar = memo(function EngineControlBar({ compact = false
   const engineState = telemetry?.engineState;
 
   const btnBase = compact
-    ? 'px-3 py-1.5 rounded-sm text-[10px] tracking-widest font-mono transition-all duration-150'
-    : 'px-4 py-2 rounded-sm text-[10px] tracking-widest font-mono transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]';
+    ? 'px-3 py-1.5 rounded-lg text-[10px] tracking-widest font-mono transition-all duration-150'
+    : 'px-4 py-2 rounded-lg text-[10px] tracking-widest font-mono transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]';
 
   const disabledCls = 'disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100';
 
   return (
     <div className={`flex flex-wrap items-center gap-2 ${compact ? '' : 'gap-3'}`}>
       {/* Engine controls group */}
-      <div className="flex gap-2 items-center flex-wrap md:border-r border-white/10 md:pr-3 md:mr-1 w-full md:w-auto pb-2 md:pb-0 border-b md:border-b-0">
+      <div className="flex gap-2 items-center flex-wrap md:border-r border-[#D9E2DC] md:pr-3 md:mr-1 w-full md:w-auto pb-2 md:pb-0 border-b md:border-b-0">
         <button
           onClick={startEngine}
-          disabled={engineState !== 'OFF'}
-          className={`${btnBase} bg-emerald-950/40 text-emerald-400 border border-emerald-900/50 hover:bg-emerald-900/60 shadow-sm flex-1 md:flex-none justify-center ${disabledCls}`}
+          disabled={!engineState || engineState !== 'OFF'}
+          className={`${btnBase} bg-[#EAF4EC] text-[#2E7D32] border border-[#2E7D32]/30 hover:bg-[#2E7D32]/15 shadow-sm flex-1 md:flex-none justify-center ${disabledCls}`}
         >
           START RPM
         </button>
         <button
           onClick={holdEngine}
-          disabled={engineState === 'OFF' || engineState === 'STOPPING'}
-          className={`${btnBase} bg-amber-950/40 text-amber-400 border border-amber-900/50 hover:bg-amber-900/60 shadow-sm flex-1 md:flex-none justify-center ${disabledCls}`}
+          disabled={!engineState || (engineState !== 'RUNNING' && engineState !== 'HOLD')}
+          className={`${btnBase} bg-[#FEF3C7]/50 text-[#D97706] border border-[#D97706]/30 hover:bg-[#D97706]/10 shadow-sm flex-1 md:flex-none justify-center ${disabledCls}`}
         >
           {engineState === 'HOLD' ? 'RESUME RPM' : 'HOLD RPM'}
         </button>
         <button
           onClick={stopEngine}
-          disabled={engineState === 'OFF'}
-          className={`${btnBase} bg-zinc-950/40 text-zinc-400 border border-zinc-900/50 hover:bg-zinc-900/60 shadow-sm flex-1 md:flex-none justify-center ${disabledCls}`}
+          disabled={!engineState || (engineState !== 'STARTING' && engineState !== 'RUNNING' && engineState !== 'HOLD')}
+          className={`${btnBase} bg-[#F4F8F4] text-[#667085] border border-[#D9E2DC] hover:bg-[#EAF4EC] shadow-sm flex-1 md:flex-none justify-center ${disabledCls}`}
         >
           STOP ENGINE
         </button>
@@ -106,38 +106,37 @@ export const EngineControlBar = memo(function EngineControlBar({ compact = false
         <select
           value={selectedFault}
           onChange={(e) => setSelectedFault(e.target.value)}
-          className="px-2 py-2 md:py-1.5 bg-[#0a0a0c] border border-border/60 rounded-sm text-[10px] tracking-widest font-mono text-muted-foreground focus:outline-none focus:border-cyan-900/50 flex-1 md:flex-none"
+          className="px-2 py-2 md:py-1.5 bg-white border border-[#D9E2DC] rounded-lg text-[10px] tracking-widest font-mono text-[#667085] focus:outline-none focus:border-[#2E7D32]/50 focus:ring-1 focus:ring-[#2E7D32]/20 flex-1 md:flex-none"
         >
-          <option value="GENERIC">GENERIC</option>
-          <option value="MISFIRE">MISFIRE</option>
-          <option value="INJECTOR_ABNORMALITY">INJECTOR ABNORMALITY</option>
-          <option value="LUBRICATION_ISSUE">LUBRICATION ISSUE</option>
-          <option value="OVERHEATING">OVERHEATING</option>
-          <option value="ABNORMAL_VIBRATION">ABNORMAL VIBRATION</option>
-          <option value="SENSOR_DRIFT">SENSOR DRIFT</option>
+          <option value="TURBOCHARGER_BOOST_LEAK">TURBO BOOST LEAK</option>
+          <option value="OIL_CAVITATION">OIL CAVITATION</option>
+          <option value="CYLINDER2_INJECTOR_CLOG">CYL2 INJECTOR CLOG</option>
+          <option value="ALTERNATOR_RAIL_DROP">ALTERNATOR RAIL DROP</option>
+          <option value="MAP_SENSOR_DRIFT">MAP SENSOR DRIFT</option>
         </select>
         <button
           onClick={simulateFault}
-          disabled={engineState === 'OFF'}
-          className={`${btnBase} bg-red-950/40 text-red-400 border border-red-900/50 hover:bg-red-900/60 hover:shadow-[0_0_12px_rgba(239,68,68,0.15)] shadow-sm flex-1 md:flex-none justify-center ${disabledCls}`}
+          disabled={!engineState || (engineState !== 'RUNNING' && engineState !== 'HOLD')}
+          className={`${btnBase} bg-[#FEF2F2] text-[#DC2626] border border-[#DC2626]/30 hover:bg-[#DC2626]/10 shadow-sm flex-1 md:flex-none justify-center ${disabledCls}`}
         >
           SIMULATE FAULT
         </button>
         <button
           onClick={stopFault}
-          className={`${btnBase} bg-orange-950/40 text-orange-400 border border-orange-900/50 hover:bg-orange-900/60 shadow-sm flex-1 md:flex-none justify-center`}
+          disabled={!telemetry?.faultActive}
+          className={`${btnBase} bg-[#FFF7ED] text-[#D97706] border border-[#D97706]/30 hover:bg-[#D97706]/10 shadow-sm flex-1 md:flex-none justify-center ${disabledCls}`}
         >
           STOP FAULT
         </button>
         <button
           onClick={resetSimulation}
-          className={`${btnBase} bg-cyan-950/40 text-cyan-400 border border-cyan-900/50 hover:bg-cyan-900/60 hover:shadow-[0_0_12px_rgba(6,182,212,0.15)] shadow-sm flex-1 md:flex-none justify-center`}
+          className={`${btnBase} bg-[#EAF4EC] text-[#2E7D32] border border-[#2E7D32]/30 hover:bg-[#2E7D32]/15 shadow-sm flex-1 md:flex-none justify-center`}
         >
           RESET
         </button>
       </div>
       {controlError && (
-        <p role="alert" className="w-full text-[10px] font-mono text-red-400">
+        <p role="alert" className="w-full text-[10px] font-mono text-[#DC2626]">
           CONTROL ERROR: {controlError}
         </p>
       )}

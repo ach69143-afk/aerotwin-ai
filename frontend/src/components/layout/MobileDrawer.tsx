@@ -1,84 +1,105 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { navItems } from './Sidebar';
 import { X } from 'lucide-react';
-import { useEffect } from 'react';
+import { navItems } from './Sidebar';
+import { AIAssistant } from '../AIAssistant';
 
 interface MobileDrawerProps {
-  isOpen: boolean;
+  open: boolean;
   onClose: () => void;
 }
 
-export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
+export function MobileDrawer({ open, onClose }: MobileDrawerProps) {
   const isConnected = useStore((s) => s.isConnected);
-  const telemetry = useStore((s) => s.throttledTelemetry);
   const location = useLocation();
-
-  const systemStatus = !telemetry
-    ? 'OFFLINE'
-    : telemetry.status === 'HEALTHY'
-    ? 'NOMINAL'
-    : telemetry.risk === 'CRITICAL'
-    ? 'CRITICAL'
-    : 'WARNING';
-
-  const statusColor =
-    systemStatus === 'NOMINAL'
-      ? 'text-emerald-400'
-      : systemStatus === 'WARNING'
-      ? 'text-amber-400'
-      : systemStatus === 'CRITICAL'
-      ? 'text-red-400'
-      : 'text-zinc-500';
-
-  // Close drawer when location changes
-  useEffect(() => {
-    onClose();
-  }, [location.pathname, onClose]);
 
   return (
     <AnimatePresence>
-      {isOpen && (
+      {open && (
         <>
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="fixed inset-0 z-40 bg-black/40"
             onClick={onClose}
-            className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm md:hidden"
           />
-
           {/* Drawer */}
           <motion.div
             initial={{ x: '-100%' }}
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed inset-y-0 left-0 z-50 w-64 border-r border-border/30 bg-[#0c0c0e] flex flex-col shadow-2xl md:hidden"
+            transition={{ type: 'spring', damping: 24, stiffness: 300 }}
+            className="fixed inset-y-0 left-0 z-50 flex flex-col"
+            style={{
+              width: '280px',
+              backgroundColor: '#102F4F',
+            }}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-5 pt-6 pb-4 border-b border-border/30">
+            <div
+              style={{
+                padding: '20px 20px 16px 20px',
+                borderBottom: '1px solid rgba(255,255,255,0.08)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+              }}
+            >
               <div>
-                <h1 className="text-base font-semibold tracking-[0.2em] text-cyan-400 font-sans">
-                  AEROTWIN AI
+                <h1
+                  style={{
+                    fontSize: '15px',
+                    fontWeight: 600,
+                    letterSpacing: '0.12em',
+                    color: '#FFFFFF',
+                    fontFamily: 'Inter, system-ui, sans-serif',
+                    margin: 0,
+                  }}
+                >
+                  AeroTwin AI
                 </h1>
-                <p className="text-[9px] text-zinc-500 uppercase tracking-[0.15em] mt-1 font-sans">
-                  Digital Engine Intelligence
+                <p
+                  style={{
+                    fontSize: '10px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                    marginTop: '4px',
+                    color: '#B8C7D6',
+                    fontFamily: 'Inter, system-ui, sans-serif',
+                  }}
+                >
+                  Engine Digital Twin &amp; Health Monitoring
                 </p>
               </div>
               <button
                 onClick={onClose}
-                aria-label="Close navigation"
-                className="w-[48px] h-[48px] flex items-center justify-center rounded-sm text-zinc-400 hover:text-white hover:bg-white/10 active:bg-white/20 transition-colors"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#B8C7D6',
+                  padding: '4px',
+                }}
               >
-                <X size={24} />
+                <X size={20} />
               </button>
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 py-3 px-3 space-y-0.5 overflow-y-auto">
+            <nav
+              style={{
+                flex: 1,
+                padding: '16px 14px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px',
+                overflowY: 'auto',
+              }}
+            >
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive =
@@ -87,58 +108,77 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
                     : location.pathname.startsWith(item.path);
 
                 return (
-                  <NavLink key={item.path} to={item.path}>
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    onClick={onClose}
+                    style={{ textDecoration: 'none', display: 'block' }}
+                  >
                     <div
-                      className={`
-                        relative flex items-center gap-3 px-3 py-3 text-[12px] tracking-wider font-sans
-                        rounded-sm cursor-pointer transition-colors duration-150
-                        ${
-                          isActive
-                            ? 'bg-cyan-950/30 text-cyan-400'
-                            : 'text-zinc-500 hover:bg-white/[0.02] hover:text-zinc-300'
-                        }
-                      `}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        width: '100%',
+                        height: '48px',
+                        padding: '0 16px',
+                        borderRadius: '10px',
+                        cursor: 'pointer',
+                        transition: 'background-color 150ms ease',
+                        backgroundColor: isActive ? '#2E7D32' : 'transparent',
+                        color: isActive ? '#FFFFFF' : '#B8C7D6',
+                        boxSizing: 'border-box',
+                        border: isActive
+                          ? '1px solid rgba(255,255,255,0.12)'
+                          : '1px solid transparent',
+                      }}
                     >
-                      {isActive && (
-                        <div className="absolute left-0 top-1 bottom-1 w-[2px] bg-cyan-400 rounded-r" />
-                      )}
-                      <Icon size={16} strokeWidth={1.5} />
-                      <span>{item.label}</span>
+                      <Icon size={18} strokeWidth={1.8} style={{ flexShrink: 0 }} />
+                      <span
+                        style={{
+                          fontSize: '13px',
+                          letterSpacing: '0.04em',
+                          fontFamily: 'Inter, system-ui, sans-serif',
+                          fontWeight: 500,
+                        }}
+                      >
+                        {item.label}
+                      </span>
                     </div>
                   </NavLink>
                 );
               })}
             </nav>
 
-            {/* System Status Footer */}
-            <div className="px-4 py-4 border-t border-border/30 space-y-3 pb-[env(safe-area-inset-bottom)]">
-              <div className="flex items-center gap-2 text-[10px] tracking-[0.15em] font-mono">
-                <motion.div
-                  animate={{ opacity: isConnected ? [1, 0.4, 1] : 1 }}
-                  transition={{ repeat: Infinity, duration: 2 }}
-                  className={`w-1.5 h-1.5 rounded-full ${
-                    isConnected
-                      ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]'
-                      : 'bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.5)]'
-                  }`}
+            {/* ── AI Assistant ────────────────────────────────── */}
+            <AIAssistant />
+
+            {/* Footer */}
+            <div
+              style={{
+                padding: '16px 20px',
+                borderTop: '1px solid rgba(255,255,255,0.08)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div
+                  style={{
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    backgroundColor: isConnected ? '#4ADE80' : '#F87171',
+                  }}
                 />
-                <span className="text-zinc-500">
+                <span
+                  style={{
+                    fontSize: '9px',
+                    letterSpacing: '0.1em',
+                    fontFamily: 'Inter, system-ui, sans-serif',
+                    color: '#8FA4B8',
+                  }}
+                >
                   {isConnected ? 'DATALINK ACTIVE' : 'DATALINK OFFLINE'}
                 </span>
-              </div>
-              <div className="flex items-center gap-2 text-[10px] tracking-[0.15em] font-mono">
-                <div
-                  className={`w-1.5 h-1.5 rounded-full ${
-                    systemStatus === 'NOMINAL'
-                      ? 'bg-emerald-500'
-                      : systemStatus === 'WARNING'
-                      ? 'bg-amber-400'
-                      : systemStatus === 'CRITICAL'
-                      ? 'bg-red-500'
-                      : 'bg-zinc-600'
-                  }`}
-                />
-                <span className={statusColor}>SYS: {systemStatus}</span>
               </div>
             </div>
           </motion.div>

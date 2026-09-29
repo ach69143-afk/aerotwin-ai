@@ -16,22 +16,20 @@ from smart_engine import EngineHealthMonitor
 
 
 class FaultType(str, Enum):
-    GENERIC = "GENERIC"
-    MISFIRE = "MISFIRE"
-    INJECTOR_ABNORMALITY = "INJECTOR_ABNORMALITY"
-    LUBRICATION_ISSUE = "LUBRICATION_ISSUE"
-    OVERHEATING = "OVERHEATING"
-    ABNORMAL_VIBRATION = "ABNORMAL_VIBRATION"
-    SENSOR_DRIFT = "SENSOR_DRIFT"
+    TURBOCHARGER_BOOST_LEAK = "TURBOCHARGER_BOOST_LEAK"
+    OIL_CAVITATION = "OIL_CAVITATION"
+    CYLINDER2_INJECTOR_CLOG = "CYLINDER2_INJECTOR_CLOG"
+    ALTERNATOR_RAIL_DROP = "ALTERNATOR_RAIL_DROP"
+    MAP_SENSOR_DRIFT = "MAP_SENSOR_DRIFT"
 
 
 class FaultRequest(BaseModel):
-    fault_type: FaultType = FaultType.GENERIC
+    fault_type: FaultType = FaultType.TURBOCHARGER_BOOST_LEAK
 
 
 ENVIRONMENT = os.getenv("AEROTWIN_ENV", "development").lower()
 CONTROL_TOKEN = os.getenv("AEROTWIN_CONTROL_TOKEN")
-DEFAULT_LOCAL_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"
+DEFAULT_LOCAL_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174"
 ALLOWED_ORIGINS = [
     origin.strip()
     for origin in os.getenv("AEROTWIN_ALLOWED_ORIGINS", DEFAULT_LOCAL_ORIGINS).split(",")
@@ -85,21 +83,35 @@ def build_normal_baseline():
     # Cover the normal operational RPM range and realistic sensor variation.
     for _ in range(320):
         normal_history.append({
-            "rpm": rng.gauss(5000.0, 25.0),
-            "cht": rng.gauss(150.0, 1.5),
-            "oil_pressure": rng.gauss(4.0, 0.08),
-            "vibration": max(0.05, rng.gauss(0.2, 0.015)),
+            "rpm": rng.gauss(5200.0, 25.0),
+            "cht": rng.gauss(105.0, 1.5),
+            "oil_pressure": rng.gauss(4.2, 0.08),
+            "vibration": max(0.05, rng.gauss(0.3, 0.015)),
+            "map_pressure": rng.gauss(38.0, 0.3),
+            "turbo_rpm": rng.gauss(42000.0, 300.0),
+            "cyl2_egt": rng.gauss(780.0, 3.0),
+            "cyl2_cht": rng.gauss(105.0, 1.5),
+            "voltage_lane_a": rng.gauss(14.2, 0.08),
+            "voltage_lane_b": rng.gauss(14.2, 0.08),
+            "throttle": rng.gauss(75.0, 0.5),
             "engine_state": "RUNNING",
         })
 
     # The simulator also transitions through STARTING, so include that regime.
-    for rpm in range(0, 5001, 250):
+    for rpm in range(0, 5201, 250):
         for _ in range(4):
             normal_history.append({
                 "rpm": max(0.0, rng.gauss(float(rpm), 20.0)),
-                "cht": rng.gauss(150.0, 1.5),
-                "oil_pressure": rng.gauss(4.0, 0.08),
-                "vibration": max(0.05, rng.gauss(0.2, 0.015)),
+                "cht": rng.gauss(105.0, 1.5),
+                "oil_pressure": rng.gauss(4.2, 0.08),
+                "vibration": max(0.05, rng.gauss(0.3, 0.015)),
+                "map_pressure": rng.gauss(38.0, 0.3),
+                "turbo_rpm": rng.gauss(42000.0, 300.0),
+                "cyl2_egt": rng.gauss(780.0, 3.0),
+                "cyl2_cht": rng.gauss(105.0, 1.5),
+                "voltage_lane_a": rng.gauss(14.2, 0.08),
+                "voltage_lane_b": rng.gauss(14.2, 0.08),
+                "throttle": rng.gauss(75.0, 0.5),
                 "engine_state": "STARTING" if rpm else "OFF",
             })
 
@@ -125,6 +137,13 @@ def create_payload(sensor_data):
         "cht": sensor_data["cht"],
         "oilPressure": sensor_data["oil_pressure"],
         "vibration": sensor_data["vibration"],
+        "mapPressure": sensor_data["map_pressure"],
+        "turboRpm": sensor_data["turbo_rpm"],
+        "cyl2Egt": sensor_data["cyl2_egt"],
+        "cyl2Cht": sensor_data["cyl2_cht"],
+        "voltageLaneA": sensor_data["voltage_lane_a"],
+        "voltageLaneB": sensor_data["voltage_lane_b"],
+        "throttle": sensor_data["throttle"],
         "healthPct": health_pct,
         "risk": risk_level,
         "rul": rul,
@@ -137,6 +156,7 @@ def create_payload(sensor_data):
         "engineState": sensor_data["engine_state"],
         "faultActive": sensor_data.get("fault_active", False),
         "faultType": sensor_data.get("fault_type", "NONE"),
+        "faultSeverity": sensor_data.get("fault_severity", 0.0),
     }
 
 
@@ -144,7 +164,12 @@ async def run_simulation():
     """Advance the shared simulator once at 10 Hz, regardless of viewer count."""
     global latest_telemetry
     while True:
-        latest_telemetry = create_payload(engine.get_sensor_data())
+        try:
+            latest_telemetry = create_payload(engine.get_sensor_data())
+        except Exception as e:
+            print(f"ERROR IN RUN_SIMULATION: {e}")
+            import traceback
+            traceback.print_exc()
         await asyncio.sleep(0.1)
 
 
@@ -168,7 +193,16 @@ async def shutdown_event():
 @app.post("/api/start-engine", dependencies=[Depends(require_control_token)])
 async def start_engine():
     if not engine.start_engine():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Engine is not OFF.")
+        state = engine.engine_state
+        if state == "STARTING":
+            detail = "Engine is starting."
+        elif state in ["RUNNING", "HOLD"]:
+            detail = "Engine is already running."
+        elif state in ["STOPPING", "COOLDOWN"]:
+            detail = "Engine is cooling down. Wait until OFF before starting."
+        else:
+            detail = "Engine is not OFF."
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
     return {"status": "Engine starting"}
 
 

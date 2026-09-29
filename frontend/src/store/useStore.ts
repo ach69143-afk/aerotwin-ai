@@ -6,6 +6,13 @@ export interface Telemetry {
   cht: number;
   oilPressure: number;
   vibration: number;
+  mapPressure: number;
+  turboRpm: number;
+  cyl2Egt: number;
+  cyl2Cht: number;
+  voltageLaneA: number;
+  voltageLaneB: number;
+  throttle: number;
   healthPct: number;
   risk: string;
   rul: string;
@@ -18,6 +25,7 @@ export interface Telemetry {
   engineState?: string;
   faultActive?: boolean;
   faultType?: string;
+  faultSeverity?: number;
 }
 
 export interface FaultEvent {

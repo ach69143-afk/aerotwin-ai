@@ -23,14 +23,14 @@ export function AppLayout() {
   if (!isReady) {
     return (
       <MotionConfig reducedMotion={settings.animationsEnabled ? 'never' : 'always'}>
-      <div className={`flex flex-col items-center justify-center h-screen w-screen bg-[#09090b] text-cyan-500 font-mono gap-4 overflow-hidden ${settings.animationsEnabled ? '' : 'animations-disabled'}`}>
+      <div className={`flex flex-col items-center justify-center h-screen w-screen bg-white text-[#2E7D32] font-mono gap-4 overflow-hidden ${settings.animationsEnabled ? '' : 'animations-disabled'}`}>
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}
         >
-          <Activity size={32} className="text-cyan-500" />
+          <Activity size={32} className="text-[#2E7D32]" />
         </motion.div>
-        INITIALIZING AEROTWIN AI DATALINK...
+        <span className="text-[#1F2933] text-sm tracking-widest">INITIALIZING AEROTWIN AI DATALINK...</span>
       </div>
       </MotionConfig>
     );
@@ -38,7 +38,7 @@ export function AppLayout() {
 
   return (
     <MotionConfig reducedMotion={settings.animationsEnabled ? 'never' : 'always'}>
-    <div className={`flex h-screen w-full bg-[#09090b] text-foreground overflow-hidden selection:bg-cyan-900 selection:text-cyan-50 ${settings.compactMode ? 'compact-mode' : ''} ${settings.animationsEnabled ? '' : 'animations-disabled'}`}>
+    <div className={`flex h-screen w-full bg-[#F4F8F4] text-foreground overflow-hidden selection:bg-[#EAF4EC] selection:text-[#2E7D32] ${settings.compactMode ? 'compact-mode' : ''} ${settings.animationsEnabled ? '' : 'animations-disabled'}`}>
       {/* Sidebar — always visible on md+ */}
       <div className="hidden md:flex">
         <Sidebar />
@@ -46,7 +46,7 @@ export function AppLayout() {
 
       {/* Mobile Drawer */}
       <MobileDrawer 
-        isOpen={isMobileDrawerOpen} 
+        open={isMobileDrawerOpen} 
         onClose={closeMobileDrawer}
       />
 
