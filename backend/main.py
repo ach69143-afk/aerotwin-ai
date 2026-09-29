@@ -190,6 +190,19 @@ async def shutdown_event():
             await simulation_task
 
 
+@app.get("/api/status")
+async def get_status():
+    """Return the current engine state for frontend sync on load or after errors."""
+    return {
+        "engine_state": engine.engine_state,
+        "fault_active": engine.fault_active,
+        "fault_type": engine.fault_type,
+        "fault_severity": round(engine.fault_severity, 4),
+        "rpm": round(engine.rpm, 2),
+        "target_rpm": round(engine.target_rpm, 2),
+    }
+
+
 @app.post("/api/start-engine", dependencies=[Depends(require_control_token)])
 async def start_engine():
     if not engine.start_engine():
@@ -202,14 +215,20 @@ async def start_engine():
             detail = "Engine is cooling down. Wait until OFF before starting."
         else:
             detail = "Engine is not OFF."
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"message": detail, "engine_state": state},
+        )
     return {"status": "Engine starting"}
 
 
 @app.post("/api/stop-engine", dependencies=[Depends(require_control_token)])
 async def stop_engine():
     if not engine.stop_engine():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Engine is already OFF or stopping.")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"message": "Engine is already OFF or stopping.", "engine_state": engine.engine_state},
+        )
     return {"status": "Engine stopping"}
 
 
@@ -219,7 +238,10 @@ async def hold_engine():
         engine.resume_engine()
         return {"status": "Engine resumed"}
     if not engine.hold_engine():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Engine must be RUNNING to hold RPM.")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"message": "Engine must be RUNNING to hold RPM.", "engine_state": engine.engine_state},
+        )
     return {"status": "Engine holding"}
 
 

@@ -69,10 +69,16 @@ export function useTelemetrySocket(url: string) {
 
   useEffect(() => {
     mountedRef.current = true;
-    connect();
+    
+    // Delay connection slightly to prevent uncatchable WebSocket errors 
+    // when React.StrictMode double-mounts components in development.
+    const timer = setTimeout(() => {
+      connect();
+    }, 50);
 
     return () => {
       mountedRef.current = false;
+      clearTimeout(timer);
       if (reconnectTimer.current) {
         clearTimeout(reconnectTimer.current);
         reconnectTimer.current = null;

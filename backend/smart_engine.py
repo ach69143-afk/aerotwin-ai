@@ -218,7 +218,7 @@ class EngineHealthMonitor:
         if health_pct <= 0.0:
             risk_level = "CRITICAL"
             health_status = "CRITICAL FAILURE"
-        elif health_pct < 35.0 or oil_pres < 1.5 or vib > 2.0:
+        elif health_pct < 35.0 or current_data.get('oil_pressure', 4.2) < 1.5 or current_data.get('vibration', 0.0) > 2.0:
             risk_level = "CRITICAL"
             health_status = "CRITICAL FAILURE"
         elif health_pct < 60.0:

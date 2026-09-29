@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo, Suspense, Component, memo, type ReactNode } from 'react';
+import { useRef, useEffect, useMemo, useState, useCallback, Suspense, Component, memo, type ReactNode } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, useGLTF, ContactShadows, Html, Environment, Grid } from '@react-three/drei';
 import { useStore } from '../store/useStore';
@@ -28,15 +28,24 @@ interface ErrorBoundaryState { hasError: boolean; }
 class ModelErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { hasError: false };
   static getDerivedStateFromError() { return { hasError: true }; }
+  handleRetry = () => {
+    this.setState({ hasError: false });
+  };
   render() {
     if (this.state.hasError) {
       return (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center">
-            <p className="text-[#DC2626] text-sm font-sans tracking-widest font-medium">DIGITAL TWIN MODEL UNAVAILABLE</p>
-            <p className="text-[#667085] text-[10px] font-sans mt-2">Failed to load engine model</p>
+        <Html center>
+          <div className="flex flex-col items-center gap-3 select-none">
+            <p className="text-[#DC2626] text-xs font-sans tracking-widest font-medium">3D MODEL UNAVAILABLE</p>
+            <p className="text-[#667085] text-[10px] font-sans mt-1">Failed to load engine model</p>
+            <button
+              onClick={this.handleRetry}
+              className="mt-2 px-4 py-1.5 text-[10px] font-mono tracking-widest bg-[#EAF4EC] text-[#2E7D32] border border-[#2E7D32]/30 rounded-lg hover:bg-[#2E7D32]/15 transition-all cursor-pointer"
+            >
+              RETRY
+            </button>
           </div>
-        </div>
+        </Html>
       );
     }
     return this.props.children;
@@ -47,7 +56,7 @@ class ModelErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryStat
 
 const ENGINE_MODEL_PATH = '/models/Rotax_915.glb';
 
-function EngineModel() {
+function EngineModel({ onBoundsReady }: { onBoundsReady?: (radius: number, center: THREE.Vector3) => void }) {
   const { scene } = useGLTF(ENGINE_MODEL_PATH, true, true);
   const groupRef = useRef<THREE.Group>(null);
   const { camera, gl } = useThree();
@@ -182,6 +191,11 @@ function EngineModel() {
       modelCenter: finalCenter,
     };
   }, [scene]);
+
+  // Report computed bounds to parent for camera framing
+  useEffect(() => {
+    onBoundsReady?.(modelRadius, modelCenter);
+  }, [modelRadius, modelCenter, onBoundsReady]);
 
   // ── Auto-frame: calculate camera distance from bounding sphere ──
   const hasFramed = useRef(false);
@@ -341,6 +355,20 @@ function EngineModel() {
     }
   });
 
+  // Dispose cloned materials and geometries on unmount to prevent WebGL context leaks
+  useEffect(() => {
+    return () => {
+      for (const mat of materials) {
+        mat.dispose();
+      }
+      engineScene.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh) {
+          (child as THREE.Mesh).geometry?.dispose();
+        }
+      });
+    };
+  }, [materials, engineScene]);
+
   return (
     <group ref={groupRef}>
       <primitive object={engineScene} />
@@ -482,10 +510,17 @@ function TelemetryOverlay({ hideTitle }: { hideTitle?: boolean }) {
   );
 }
 
-// ─── Inner Canvas Content (uses modelRadius for OrbitControls limits) ──
+// ─── Inner Canvas Content ──────────────────────────────────────────
 
-function CanvasContent({ modelRadius, modelCenter }: { modelRadius: number; modelCenter: THREE.Vector3 }) {
+function CanvasContent() {
   const settings = useStore((state) => state.settings);
+  const [modelBounds, setModelBounds] = useState({ radius: 3.0, center: new THREE.Vector3(0, 0, 0) });
+
+  const handleBoundsReady = useCallback((radius: number, center: THREE.Vector3) => {
+    setModelBounds({ radius, center });
+  }, []);
+
+  const { radius: modelRadius, center: modelCenter } = modelBounds;
 
   return (
     <>
@@ -525,10 +560,12 @@ function CanvasContent({ modelRadius, modelCenter }: { modelRadius: number; mode
         sectionThickness={0.3}
       />
 
-      {/* Engine Model */}
-      <Suspense fallback={<LoadingIndicator />}>
-        <EngineModel />
-      </Suspense>
+      {/* Engine Model — error boundary inside Canvas keeps renderer alive on failure */}
+      <ModelErrorBoundary>
+        <Suspense fallback={<LoadingIndicator />}>
+          <EngineModel onBoundsReady={handleBoundsReady} />
+        </Suspense>
+      </ModelErrorBoundary>
 
       {/* Camera framing — runs after model is loaded */}
       <CameraFramer radius={modelRadius} center={modelCenter} />
@@ -561,94 +598,24 @@ function CanvasContent({ modelRadius, modelCenter }: { modelRadius: number; mode
 
 // ─── Main DigitalTwin Component ─────────────────────────────────────
 
-// We need the model bounds BEFORE rendering the Canvas content.
-// Use a wrapper that pre-loads the GLTF and computes bounds.
-
-function useModelBounds() {
-  const { scene } = useGLTF(ENGINE_MODEL_PATH, true, true);
-
-  return useMemo(() => {
-    // Compute bounds from visible engine meshes only
-    const meshBox = new THREE.Box3();
-    scene.traverse((child) => {
-      if ((child as THREE.Mesh).isMesh && child.visible) {
-        const mesh = child as THREE.Mesh;
-        const name = mesh.name.toLowerCase();
-        const isIgnored = name.includes('floor') || 
-                          name.includes('grid') || 
-                          name.includes('plane') || 
-                          name.includes('room') || 
-                          name.includes('backdrop') || 
-                          name.includes('helper') || 
-                          name.includes('shadow');
-        if (!isIgnored) {
-          mesh.updateWorldMatrix(true, false);
-          const geom = mesh.geometry;
-          if (geom) {
-            geom.computeBoundingBox();
-            if (geom.boundingBox) {
-              const wb = geom.boundingBox.clone();
-              wb.applyMatrix4(mesh.matrixWorld);
-              meshBox.union(wb);
-            }
-          }
-        }
-      }
-    });
-
-    if (meshBox.isEmpty()) {
-      meshBox.setFromObject(scene);
-    }
-
-    const size = meshBox.getSize(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z);
-    const targetSize = 5.0;
-    const scale = maxDim > 0 ? targetSize / maxDim : 1;
-
-    // Compute scaled center not needed here since we center it inside EngineModel
-
-    // Approximate radius after scaling
-    const sphere = new THREE.Sphere();
-    meshBox.getBoundingSphere(sphere);
-    const scaledRadius = sphere.radius * scale;
-
-    return { radius: scaledRadius, center: new THREE.Vector3(0, 0, 0) };
-  }, [scene]);
-}
-
 export const DigitalTwin = memo(function DigitalTwin({ hideTitle }: { hideTitle?: boolean }) {
   const settings = useStore((state) => state.settings);
 
-  // Pre-compute model bounds for camera framing
-  // (useGLTF caches, so this doesn't re-download)
-  let modelRadius = 3.0;
-  let modelCenter = new THREE.Vector3(0, 0, 0);
-
-  try {
-    const bounds = useModelBounds();
-    modelRadius = bounds.radius;
-    modelCenter = bounds.center;
-  } catch {
-    // Model not yet loaded, use defaults
-  }
-
   return (
     <div className="w-full h-full min-h-[320px] md:min-h-[400px] rounded-xl relative bg-[#F7F8FA] overflow-hidden border border-[#E4E7EC] shadow-sm">
-      <ModelErrorBoundary>
-        <Canvas
-          camera={{ position: [5, 3.5, 5], fov: 45 }}
-          shadows
-          dpr={[1, 1.2]}
-          gl={{
-            antialias: true,
-            toneMapping: THREE.ACESFilmicToneMapping,
-            toneMappingExposure: 1.2,
-            powerPreference: 'high-performance',
-          }}
-        >
-          <CanvasContent modelRadius={modelRadius} modelCenter={modelCenter} />
-        </Canvas>
-      </ModelErrorBoundary>
+      <Canvas
+        camera={{ position: [5, 3.5, 5], fov: 45 }}
+        shadows
+        dpr={[1, 1.2]}
+        gl={{
+          antialias: true,
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 1.2,
+          powerPreference: 'high-performance',
+        }}
+      >
+        <CanvasContent />
+      </Canvas>
 
       {settings.showTelemetryOverlay && <TelemetryOverlay hideTitle={hideTitle} />}
     </div>
