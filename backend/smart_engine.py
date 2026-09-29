@@ -214,6 +214,9 @@ class EngineHealthMonitor:
         else:
             self.current_rul = (health_pct / 100.0) * max_rul
 
+        oil_pres = current_data.get('oil_pressure', 4.2)
+        vib = current_data.get('vibration', 0.02)
+        
         # Determine Risk Level based on health
         if health_pct <= 0.0:
             risk_level = "CRITICAL"
