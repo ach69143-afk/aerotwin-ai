@@ -499,8 +499,8 @@ function CanvasContent({ modelRadius, modelCenter }: { modelRadius: number; mode
         intensity={2.0}
         color="#ffffff"
         castShadow
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
+        shadow-mapSize-width={512}
+        shadow-mapSize-height={512}
         shadow-camera-far={20}
         shadow-camera-near={0.1}
         shadow-bias={-0.001}
@@ -538,7 +538,9 @@ function CanvasContent({ modelRadius, modelCenter }: { modelRadius: number; mode
         position={[0, -1.99, 0]}
         opacity={0.25}
         scale={8}
-        blur={1.5}
+        blur={0.5}
+        resolution={256}
+        frames={1}
         far={4}
         color="#1F2933"
       />

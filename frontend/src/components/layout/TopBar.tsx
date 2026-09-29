@@ -7,12 +7,11 @@ interface TopBarProps {
 }
 
 export function TopBar({ onMenuClick }: TopBarProps) {
-  const telemetry = useStore((s) => s.throttledTelemetry);
   const isConnected = useStore((s) => s.isConnected);
-
-  const engineState = telemetry?.engineState || (isConnected ? 'CONNECTING' : 'OFFLINE');
-  const healthPct = telemetry?.healthPct?.toFixed(1) ?? '--';
-  const risk = telemetry?.risk ?? '--';
+  const engineState = useStore((s) => s.throttledTelemetry?.engineState) || (isConnected ? 'CONNECTING' : 'OFFLINE');
+  const healthPct = useStore((s) => s.throttledTelemetry?.healthPct?.toFixed(1)) ?? '--';
+  const risk = useStore((s) => s.throttledTelemetry?.risk) ?? '--';
+  const timestamp = useStore((s) => s.throttledTelemetry?.timestamp) || '--:--:--';
 
   const riskColor =
     risk === 'NORMAL' ? '#2E7D32' :
@@ -110,7 +109,7 @@ export function TopBar({ onMenuClick }: TopBarProps) {
       <div className="text-[10px] font-mono tracking-wider shrink-0 ml-auto hidden sm:block"
         style={{ color: '#667085' }}
       >
-        {telemetry?.timestamp || '--:--:--'}
+        {timestamp}
       </div>
     </div>
   );

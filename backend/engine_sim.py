@@ -51,6 +51,9 @@ class AeroEngineSimulator:
         self.target_vlane_b = 0.0
         self.target_throttle = 0.0
 
+        # Ambient / cold-soak values
+        self.ambient_temp = 30.0
+
         # Healthy baseline targets (Rotax 915 iS at cruise)
         self.healthy_rpm = 5200.0
         self.healthy_cht = 105.0
@@ -117,6 +120,116 @@ class AeroEngineSimulator:
         diff = target - current
         step = diff * min(1.0, rate * dt)
         return current + step
+
+    def _compute_startup_targets(self, rpm_frac):
+        """Compute parameter targets during STARTING based on how far RPM has
+        progressed toward healthy_rpm.
+
+        rpm_frac: 0.0 (engine just beginning to turn) → 1.0 (at healthy RPM)
+
+        Each parameter has its own response characteristic:
+        ─────────────────────────────────────────────────────────
+        RPM:        Direct linear ramp (handled by caller via startup_rate)
+        Oil:        Builds after rotation begins — power curve
+        Turbo:      Tracks RPM quadratically (exhaust energy)
+        MAP:        Progressive increase toward cruise
+        CHT:        Slow thermal mass — heavy lag behind RPM
+        CYL2 EGT:   Thermal, faster than CHT, still gradual
+        CYL2 CHT:   Similar to CHT
+        Vibration:  Small startup transient, settles to running baseline
+        Voltage:    Electrical system activates quickly once spinning
+        Throttle:   Opens progressively
+        """
+        amb = self.ambient_temp  # ~30°C
+
+        # ── Oil pressure ──
+        # No pressure until engine rotates a bit, then builds with a power curve
+        # Starts building after ~5% RPM, reaches ~90% of target by ~60% RPM
+        if rpm_frac < 0.05:
+            oil = 0.0
+        else:
+            adj_frac = (rpm_frac - 0.05) / 0.95  # normalize 0.05..1 → 0..1
+            oil = self.healthy_oil * (adj_frac ** 0.6)
+
+        # ── Turbo RPM ──
+        # Exhaust driven — quadratic relationship with engine RPM
+        # Doesn't meaningfully spin until ~15% RPM
+        if rpm_frac < 0.10:
+            turbo = 0.0
+        else:
+            adj_frac = (rpm_frac - 0.10) / 0.90
+            turbo = self.healthy_turbo_rpm * (adj_frac ** 1.8)
+
+        # ── MAP pressure ──
+        # Transitions from ambient (~29.9 inHg) toward cruise (~38 inHg)
+        # Starts moving once turbo begins boosting (~25% RPM)
+        if rpm_frac < 0.15:
+            map_p = 29.9
+        else:
+            adj_frac = (rpm_frac - 0.15) / 0.85
+            map_p = 29.9 + (self.healthy_map - 29.9) * (adj_frac ** 1.3)
+
+        # ── CHT (Cylinder Head Temperature) ──
+        # Very slow thermal response — large metal mass
+        # Uses a delayed exponential: barely moves in first 30% of RPM,
+        # then slowly climbs.  At RPM=100%, CHT is still only ~85% of
+        # its final value — it continues to rise via lerp after RUNNING starts.
+        #
+        # Curve: amb + (target - amb) * (1 - exp(-k * adj_frac^2))
+        # k chosen so that at rpm_frac=1.0, CHT ≈ 85°C  (about 73% of 105)
+        cht_k = 1.6
+        if rpm_frac < 0.08:
+            cht = amb
+        else:
+            adj_frac = (rpm_frac - 0.08) / 0.92
+            cht = amb + (self.healthy_cht - amb) * (1.0 - math.exp(-cht_k * adj_frac * adj_frac))
+
+        # ── CYL2 EGT ──
+        # Faster thermal response than CHT (exhaust gas heats quickly once
+        # combustion begins), but still gradual.
+        # Combustion starts around ~15% RPM (idle-like), then builds.
+        egt_k = 2.2
+        if rpm_frac < 0.12:
+            c2egt = amb
+        else:
+            adj_frac = (rpm_frac - 0.12) / 0.88
+            c2egt = amb + (self.healthy_cyl2_egt - amb) * (1.0 - math.exp(-egt_k * adj_frac * adj_frac))
+
+        # ── CYL2 CHT ──
+        # Tracks similarly to main CHT
+        c2cht_k = 1.5
+        if rpm_frac < 0.08:
+            c2cht = amb
+        else:
+            adj_frac = (rpm_frac - 0.08) / 0.92
+            c2cht = amb + (self.healthy_cyl2_cht - amb) * (1.0 - math.exp(-c2cht_k * adj_frac * adj_frac))
+
+        # ── Voltage ──
+        # Alternator starts producing useful voltage once engine reaches ~10% RPM
+        # Ramps up relatively fast (electrical system)
+        if rpm_frac < 0.08:
+            vla = 0.0
+            vlb = 0.0
+        else:
+            adj_frac = (rpm_frac - 0.08) / 0.92
+            # Fast electrical ramp — reaches ~80% by 30% RPM
+            v_frac = min(1.0, adj_frac ** 0.4)
+            vla = self.healthy_vlane_a * v_frac
+            vlb = self.healthy_vlane_b * v_frac
+
+        # ── Vibration ──
+        # Small startup transient that peaks around 20-30% RPM then settles.
+        # Simulates the initial crankshaft wobble before the engine smooths out.
+        startup_transient = 0.15 * math.sin(math.pi * min(rpm_frac / 0.4, 1.0))
+        vib = self.healthy_vib + startup_transient
+        if rpm_frac < 0.02:
+            vib = 0.02  # Nearly zero when not yet spinning
+
+        # ── Throttle ──
+        # Opens progressively
+        throttle = self.healthy_throttle * (rpm_frac ** 0.8)
+
+        return cht, oil, vib, map_p, turbo, c2egt, c2cht, vla, vlb, throttle
 
     def _compute_fault_targets(self, sev):
         """Compute target telemetry values based on fault type and severity.
@@ -224,36 +337,43 @@ class AeroEngineSimulator:
         # ── Engine state machine ──
         if self.engine_state == "OFF":
             self.target_rpm = 0.0
-            self.target_cht = 30.0
+            self.target_cht = self.ambient_temp
             self.target_oil = 0.0
             self.target_vib = 0.02
             self.target_map = 29.9
             self.target_turbo_rpm = 0.0
-            self.target_cyl2_egt = 30.0
-            self.target_cyl2_cht = 30.0
+            self.target_cyl2_egt = self.ambient_temp
+            self.target_cyl2_cht = self.ambient_temp
             self.target_vlane_a = 0.0
             self.target_vlane_b = 0.0
             self.target_throttle = 0.0
 
         elif self.engine_state == "STARTING":
-            # Time-based linear RPM ramp: ~115 RPM/sec → ~45s to 5200
+            # ── Time-based RPM ramp ──
             if self.startup_start_time is not None:
                 startup_elapsed = current_time - self.startup_start_time
                 self.target_rpm = min(self.healthy_rpm, startup_elapsed * self.startup_rate)
             else:
                 self.target_rpm = 0.0
 
-            # All other params stay at healthy baselines during startup
-            self.target_cht = self.healthy_cht
-            self.target_oil = self.healthy_oil
-            self.target_vib = self.healthy_vib
-            self.target_map = self.healthy_map
-            self.target_turbo_rpm = self.healthy_turbo_rpm
-            self.target_cyl2_egt = self.healthy_cyl2_egt
-            self.target_cyl2_cht = self.healthy_cyl2_cht
-            self.target_vlane_a = self.healthy_vlane_a
-            self.target_vlane_b = self.healthy_vlane_b
-            self.target_throttle = self.healthy_throttle
+            # ── RPM-fraction drives all other parameters ──
+            # Use the actual current RPM (not target) to prevent parameters
+            # from running ahead of the RPM ramp.
+            rpm_frac = max(0.0, min(1.0, self.rpm / self.healthy_rpm))
+
+            (cht_t, oil_t, vib_t, map_t, turbo_t,
+             c2egt_t, c2cht_t, vla_t, vlb_t, thr_t) = self._compute_startup_targets(rpm_frac)
+
+            self.target_cht = cht_t
+            self.target_oil = oil_t
+            self.target_vib = vib_t
+            self.target_map = map_t
+            self.target_turbo_rpm = turbo_t
+            self.target_cyl2_egt = c2egt_t
+            self.target_cyl2_cht = c2cht_t
+            self.target_vlane_a = vla_t
+            self.target_vlane_b = vlb_t
+            self.target_throttle = thr_t
 
             # Transition to RUNNING when RPM reaches operating range
             if self.rpm >= 5100:
@@ -318,15 +438,16 @@ class AeroEngineSimulator:
             self.target_vlane_b = 0.0
             self.target_throttle = 0.0
             
-            self.target_cht = 30.0
-            self.target_cyl2_egt = 30.0
-            self.target_cyl2_cht = 30.0
+            self.target_cht = self.ambient_temp
+            self.target_cyl2_egt = self.ambient_temp
+            self.target_cyl2_cht = self.ambient_temp
             
             # Transition to OFF when cooled down enough
             if self.cht <= 35.0 and self.cyl2_egt <= 35.0:
                 self.engine_state = "OFF"
 
         # ── Smooth telemetry toward targets ──
+        # RPM rates
         if self.engine_state == "STARTING":
             rpm_rate = 1.0
         elif self.engine_state == "STOPPING":
@@ -339,16 +460,54 @@ class AeroEngineSimulator:
         else:
             self.rpm = self._lerp(self.rpm, self.target_rpm, rpm_rate, elapsed)
 
-        self.cht = self._lerp(self.cht, self.target_cht, 0.1 if self.engine_state == "COOLDOWN" else 0.8, elapsed)
-        self.oil_pressure = self._lerp(self.oil_pressure, self.target_oil, 1.2, elapsed)
-        self.vibration = self._lerp(self.vibration, self.target_vib, 1.5, elapsed)
-        self.map_pressure = self._lerp(self.map_pressure, self.target_map, 1.0, elapsed)
-        self.turbo_rpm = self._lerp(self.turbo_rpm, self.target_turbo_rpm, 0.8, elapsed)
-        self.cyl2_egt = self._lerp(self.cyl2_egt, self.target_cyl2_egt, 0.2 if self.engine_state == "COOLDOWN" else 0.6, elapsed)
-        self.cyl2_cht = self._lerp(self.cyl2_cht, self.target_cyl2_cht, 0.1 if self.engine_state == "COOLDOWN" else 0.5, elapsed)
-        self.voltage_lane_a = self._lerp(self.voltage_lane_a, self.target_vlane_a, 2.0, elapsed)
-        self.voltage_lane_b = self._lerp(self.voltage_lane_b, self.target_vlane_b, 2.0, elapsed)
-        self.throttle = self._lerp(self.throttle, self.target_throttle, 1.5, elapsed)
+        # ── Per-parameter lerp rates ──
+        # During STARTING, use slower rates so values can't overshoot
+        # the RPM-fraction-driven targets even with lerp.
+        # During RUNNING, rates are higher to track fault transitions promptly.
+        if self.engine_state == "STARTING":
+            # Slow tracking — the targets themselves are already ramped,
+            # so the lerp just needs to follow without lag/overshoot.
+            cht_rate = 0.3         # Slow thermal
+            oil_rate = 0.8         # Moderate mechanical
+            vib_rate = 1.5         # Fast mechanical
+            map_rate = 0.6         # Moderate
+            turbo_rate = 0.5       # Moderate (inertia)
+            egt_rate = 0.4         # Thermal, faster than CHT
+            c2cht_rate = 0.3       # Same as CHT
+            v_rate = 1.5           # Fast electrical
+            thr_rate = 1.0         # Moderate
+        elif self.engine_state == "COOLDOWN":
+            cht_rate = 0.1         # Slow thermal cooldown
+            oil_rate = 1.2
+            vib_rate = 1.5
+            map_rate = 1.0
+            turbo_rate = 0.8
+            egt_rate = 0.2         # Slow thermal cooldown
+            c2cht_rate = 0.1
+            v_rate = 2.0
+            thr_rate = 1.5
+        else:
+            # RUNNING / HOLD / STOPPING — normal operational rates
+            cht_rate = 0.8
+            oil_rate = 1.2
+            vib_rate = 1.5
+            map_rate = 1.0
+            turbo_rate = 0.8
+            egt_rate = 0.6
+            c2cht_rate = 0.5
+            v_rate = 2.0
+            thr_rate = 1.5
+
+        self.cht = self._lerp(self.cht, self.target_cht, cht_rate, elapsed)
+        self.oil_pressure = self._lerp(self.oil_pressure, self.target_oil, oil_rate, elapsed)
+        self.vibration = self._lerp(self.vibration, self.target_vib, vib_rate, elapsed)
+        self.map_pressure = self._lerp(self.map_pressure, self.target_map, map_rate, elapsed)
+        self.turbo_rpm = self._lerp(self.turbo_rpm, self.target_turbo_rpm, turbo_rate, elapsed)
+        self.cyl2_egt = self._lerp(self.cyl2_egt, self.target_cyl2_egt, egt_rate, elapsed)
+        self.cyl2_cht = self._lerp(self.cyl2_cht, self.target_cyl2_cht, c2cht_rate, elapsed)
+        self.voltage_lane_a = self._lerp(self.voltage_lane_a, self.target_vlane_a, v_rate, elapsed)
+        self.voltage_lane_b = self._lerp(self.voltage_lane_b, self.target_vlane_b, v_rate, elapsed)
+        self.throttle = self._lerp(self.throttle, self.target_throttle, thr_rate, elapsed)
 
         # Clamp values
         self.rpm = max(0.0, self.rpm)
@@ -376,18 +535,21 @@ class AeroEngineSimulator:
         c_thr = self.throttle
 
         if self.engine_state != "OFF":
-            # Base sensor noise
-            c_rpm += random.gauss(0, 15)
-            c_cht += random.gauss(0, 0.5)
-            c_oil += random.gauss(0, 0.03)
-            c_vib += random.gauss(0, 0.01)
-            c_map += random.gauss(0, 0.2)
-            c_turbo += random.gauss(0, 200)
-            c_c2egt += random.gauss(0, 2.0)
-            c_c2cht += random.gauss(0, 0.3)
-            c_vla += random.gauss(0, 0.05)
-            c_vlb += random.gauss(0, 0.05)
-            c_thr += random.gauss(0, 0.3)
+            # Scale noise by how much the engine is actually running.
+            # During early startup, noise is proportionally smaller.
+            noise_scale = max(0.1, min(1.0, self.rpm / self.healthy_rpm))
+
+            c_rpm += random.gauss(0, 15 * noise_scale)
+            c_cht += random.gauss(0, 0.5 * noise_scale)
+            c_oil += random.gauss(0, 0.03 * noise_scale)
+            c_vib += random.gauss(0, 0.01 * noise_scale)
+            c_map += random.gauss(0, 0.2 * noise_scale)
+            c_turbo += random.gauss(0, 200 * noise_scale)
+            c_c2egt += random.gauss(0, 2.0 * noise_scale)
+            c_c2cht += random.gauss(0, 0.3 * noise_scale)
+            c_vla += random.gauss(0, 0.05 * noise_scale)
+            c_vlb += random.gauss(0, 0.05 * noise_scale)
+            c_thr += random.gauss(0, 0.3 * noise_scale)
 
             # Additional fault-driven fluctuation (correlated instability)
             if sev > 0.05:
@@ -427,8 +589,8 @@ class AeroEngineSimulator:
         c_vib = max(0.0, c_vib)
         c_map = max(10.0, c_map)
         c_turbo = max(0.0, c_turbo)
-        c_c2egt = max(20.0, c_c2egt)
-        c_c2cht = max(20.0, c_c2cht)
+        c_c2egt = min(910.0, max(20.0, c_c2egt))
+        c_c2cht = min(138.0, max(20.0, c_c2cht))
         c_vla = max(0.0, c_vla)
         c_vlb = max(0.0, c_vlb)
         c_thr = max(0.0, min(100.0, c_thr))

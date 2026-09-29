@@ -15,6 +15,8 @@ class EngineHealthMonitor:
         self.current_health = 100.0
         self.current_rul = 180.0
         self.last_update_time = time.time()
+        self.last_fault_severity = 0.0
+        self.severity_rate_ema = 0.0
 
     def train_model(self, normal_data):
         df = pd.DataFrame(normal_data)
@@ -148,21 +150,42 @@ class EngineHealthMonitor:
             elapsed = 0.1  # Prevent huge jumps if paused
         self.last_update_time = current_time
 
+        # Update severity rate dynamically (for RUL calculation)
+        delta_severity = fault_severity - self.last_fault_severity
+        if delta_severity > 0 and elapsed > 0:
+            current_severity_rate = delta_severity / elapsed
+            if self.severity_rate_ema == 0.0:
+                self.severity_rate_ema = current_severity_rate
+            else:
+                self.severity_rate_ema = 0.8 * self.severity_rate_ema + 0.2 * current_severity_rate
+        elif fault_severity == 0.0:
+            self.severity_rate_ema = 0.0
+            
+        self.last_fault_severity = fault_severity
+
         # If engine is OFF, don't flag anomalies and reset health state
         if engine_state == "OFF":
             self.current_health = 100.0
             self.current_rul = 180.0
+            self.severity_rate_ema = 0.0
+            self.last_fault_severity = 0.0
             return "STANDBY", "N/A", 0.0, "NORMAL", 100.0, "NONE", "NO ACTION REQUIRED", "", "LOW"
             
+        # ── Suppress false positives during transient engine states ──
+        # STARTING: parameters are ramping from cold → cruise, so anomaly
+        #           scores and safety thresholds must be ignored.
+        # STOPPING / COOLDOWN: parameters are decaying back toward cold; the
+        #           low oil pressure, low voltage, etc. are expected, not faults.
+        if engine_state in ("STARTING", "STOPPING", "COOLDOWN"):
+            # No fault should be signalled during these states
+            self.current_health = min(100.0, self.current_health + 5.0 * elapsed)
+            self.current_health = max(0.0, min(100.0, self.current_health))
+            return "HEALTHY", "N/A", 0.0, "NORMAL", round(self.current_health, 1), "NONE", "NO ACTION REQUIRED", "", "LOW"
+
         prediction = self.ai_model.predict(features)[0]
         anomaly_score = self.ai_model.decision_function(features)[0]
         safety_fault = self.detect_safety_fault(current_data)
-        
-        # Avoid false positives during startup sequence
-        if engine_state == "STARTING" and current_data['rpm'] < 4000:
-            prediction = 1
-            anomaly_score = 0.0
-            
+
         # Use fault_severity > 0 as the trigger (covers both active and recovering faults)
         if fault_severity > 0.02:
             prediction = -1
@@ -190,29 +213,25 @@ class EngineHealthMonitor:
         elif likely_fault in ["CYLINDER2_INJECTOR_CLOG", "ALTERNATOR_RAIL_DROP"]:
             max_rul = 3600.0
 
-        if prediction == -1:
-            if likely_fault != "MAP_SENSOR_DRIFT":
-                # Ensure RUL degradation is exactly proportional to health degradation for synchronization
-                target_deg_rate = 100.0 / max_rul
-                # Accelerate degradation slightly as severity peaks
-                actual_deg_rate = target_deg_rate * max(0.1, fault_severity)
-                
-                self.current_health -= actual_deg_rate * elapsed
+        if likely_fault != "MAP_SENSOR_DRIFT" and fault_severity > 0:
+            # Single Source of Truth: health strictly follows severity
+            self.current_health = 100.0 * (1.0 - fault_severity)
+            if self.severity_rate_ema > 0.001:
+                # RUL is time remaining until severity hits 1.0
+                self.current_rul = (1.0 - fault_severity) / self.severity_rate_ema
             else:
-                # MAP_SENSOR_DRIFT does not degrade actual engine health
-                self.current_health = max(90.0, self.current_health)
+                self.current_rul = max_rul * (1.0 - fault_severity)
+        elif likely_fault == "MAP_SENSOR_DRIFT":
+            # MAP_SENSOR_DRIFT does not degrade actual engine health
+            self.current_health = max(90.0, self.current_health)
+            self.current_rul = -1.0
         else:
             # Recover health if normal
             self.current_health += 5.0 * elapsed
+            self.current_rul = max_rul
             
         self.current_health = max(0.0, min(100.0, self.current_health))
         health_pct = self.current_health
-
-        # Synchronize RUL strictly with health percentage
-        if likely_fault == "MAP_SENSOR_DRIFT":
-            self.current_rul = -1.0
-        else:
-            self.current_rul = (health_pct / 100.0) * max_rul
 
         oil_pres = current_data.get('oil_pressure', 4.2)
         vib = current_data.get('vibration', 0.02)

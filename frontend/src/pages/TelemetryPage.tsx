@@ -1,16 +1,18 @@
 import { useStore } from '../store/useStore';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 
 export function TelemetryPage() {
   const history = useStore(s => s.throttledHistory);
   const isConnected = useStore(s => s.isConnected);
 
-  // We only want to show the last 100 points for the chart to keep it performant
-  const chartData = history.slice(-100);
-  
-  // For the table, show the most recent 20, reversed so newest is on top
-  const tableData = [...history].reverse().slice(0, 20);
+  const { chartData, tableData } = useMemo(() => {
+    return {
+      chartData: history.slice(-100),
+      tableData: [...history].reverse().slice(0, 20)
+    };
+  }, [history]);
 
   return (
     <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="page-container">

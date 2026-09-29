@@ -1,9 +1,12 @@
 import { Database } from 'lucide-react';
 import { useStore } from '../store/useStore';
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 
 export function HistoricalDataPage() {
   const history = useStore(s => s.throttledHistory);
+
+  const recentSamples = useMemo(() => [...history].reverse().slice(0, 50), [history]);
 
   return (
     <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="page-container">
@@ -60,7 +63,7 @@ export function HistoricalDataPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#D9E2DC]/50 text-xs">
-                {[...history].reverse().slice(0, 50).map((row, i) => (
+                {recentSamples.map((row, i) => (
                   <tr key={`${row.timestamp}-${i}`} className="hover:bg-[#F4F8F4] transition-colors">
                     <td className="px-4 py-2.5 text-[#667085]">{row.timestamp}</td>
                     <td className="px-4 py-2.5 text-right text-[#1F2933]">{row.rpm.toFixed(1)}</td>

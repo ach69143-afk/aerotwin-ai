@@ -1,10 +1,13 @@
 import { useStore } from '../store/useStore';
+import { useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, AlertTriangle, Info, ShieldAlert, Thermometer, Vibrate, CheckCircle } from 'lucide-react';
 
 export function FaultAnalysisPage() {
   const faultEvents = useStore(s => s.faultEvents);
   const telemetry = useStore(s => s.throttledTelemetry);
+
+  const reversedEvents = useMemo(() => [...faultEvents].reverse(), [faultEvents]);
 
   const getIcon = (type: string, severity: string) => {
     switch (type) {
@@ -113,7 +116,7 @@ export function FaultAnalysisPage() {
 
           <div className="flex-1 overflow-auto p-4 md:p-6 space-y-4">
             <AnimatePresence initial={false}>
-              {[...faultEvents].reverse().map((event) => (
+              {reversedEvents.map((event) => (
                 <motion.div
                   key={event.id}
                   initial={{ opacity: 0, x: -20 }}

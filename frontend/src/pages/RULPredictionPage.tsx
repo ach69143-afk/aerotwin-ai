@@ -1,5 +1,6 @@
 import { useStore } from '../store/useStore';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useMemo } from 'react';
 import { Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -7,16 +8,15 @@ export function RULPredictionPage() {
   const telemetry = useStore(s => s.throttledTelemetry);
   const history = useStore(s => s.throttledHistory);
 
-  if (!telemetry) return null;
-
-  // Use the full history buffer to visualize the complete degradation trajectory
-  const trendData = history.map(h => {
-    return {
+  const trendData = useMemo(() => {
+    return history.map(h => ({
       timestamp: h.timestamp,
       health: h.healthPct,
       threshold: 20 // Critical failure threshold
-    };
-  });
+    }));
+  }, [history]);
+
+  if (!telemetry) return null;
 
   return (
     <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="page-container">

@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import { motion } from 'framer-motion';
 
@@ -7,9 +8,21 @@ export function EngineHealthPage() {
 
   if (!telemetry) return null;
 
-  const minRpm = history.length > 0 ? Math.min(...history.map(h => h.rpm)) : telemetry.rpm;
-  const maxRpm = history.length > 0 ? Math.max(...history.map(h => h.rpm)) : telemetry.rpm;
-  const avgRpm = history.length > 0 ? history.reduce((sum, h) => sum + h.rpm, 0) / history.length : telemetry.rpm;
+  const { minRpm, maxRpm, avgRpm } = useMemo(() => {
+    if (!history || history.length === 0) {
+      return { minRpm: telemetry.rpm, maxRpm: telemetry.rpm, avgRpm: telemetry.rpm };
+    }
+    let min = Infinity;
+    let max = -Infinity;
+    let sum = 0;
+    for (let i = 0; i < history.length; i++) {
+      const r = history[i].rpm;
+      if (r < min) min = r;
+      if (r > max) max = r;
+      sum += r;
+    }
+    return { minRpm: min, maxRpm: max, avgRpm: sum / history.length };
+  }, [history, telemetry.rpm]);
 
   return (
     <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="page-container h-full overflow-y-auto">

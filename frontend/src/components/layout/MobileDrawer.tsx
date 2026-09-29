@@ -3,7 +3,6 @@ import { useStore } from '../../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { navItems } from './Sidebar';
-import { AIAssistant } from '../AIAssistant';
 
 interface MobileDrawerProps {
   open: boolean;
@@ -150,10 +149,7 @@ export function MobileDrawer({ open, onClose }: MobileDrawerProps) {
               })}
             </nav>
 
-            {/* ── AI Assistant ────────────────────────────────── */}
-            <AIAssistant />
-
-            {/* Footer */}
+            {/* ── Footer ───────────────────────────────────────── */}
             <div
               style={{
                 padding: '16px 20px',
